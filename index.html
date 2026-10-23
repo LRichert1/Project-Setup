@@ -216,7 +216,8 @@ button:disabled{opacity:.5;cursor:default}
         </div>
       </div>
       <div class="full"><label for="projDesc">Project description</label><textarea id="projDesc" data-k="projDesc" rows="5" placeholder="Scope, what the client asked for, key dates…"></textarea></div>
-      <div><label for="service">Service type</label><select id="service" data-k="service"></select></div>
+      <div class="full"><label>Services on this project <span class="hint" style="font-weight:400">pick every kind of work that applies</span></label>
+        <div class="chips" id="svcChips"></div></div>
       <div><label for="lead">Lead / project manager</label><input id="lead" data-k="lead" list="staffList" autocomplete="off"><datalist id="staffList"></datalist></div>
       <div><label for="startDate">Start date</label><input id="startDate" data-k="startDate" type="date"></div>
       <div><label for="dueDate">Target completion</label><input id="dueDate" data-k="dueDate" type="date"></div>
@@ -229,23 +230,21 @@ button:disabled{opacity:.5;cursor:default}
 
   <section class="card">
     <h2><span class="num">3</span> Project folder</h2>
-    <div class="hint" style="margin:0 0 6px">Follows the Dropbox <b>Technical</b> layout: client folder, then a numbered project folder.</div>
-    <label>Folder path</label>
-    <div class="path" id="fPath">—</div>
-    <label style="margin-top:10px" for="subTpl">Subfolders to include</label>
-    <select id="subTpl" style="max-width:340px"></select>
-    <div class="chips" id="subChips"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <input id="subAdd" placeholder="Add a subfolder…" style="max-width:240px">
-      <button class="small" id="subAddBtn" type="button">Add</button>
-    </div>
+    <div class="hint" style="margin:0 0 8px">Dropbox keeps each project in several places: <b>Technical</b> (documents), <b>Drafting</b> (CAD / Revit), <b>Data Files</b> (survey data) and <b>Proposals</b> (numbered by year). Tick the ones this project needs. Subfolders follow the services you picked.</div>
+    <div id="areas"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-      <button class="primary" id="fCreate" type="button">Create folder in Dropbox</button>
+      <button class="primary" id="fCreate" type="button">Create folders in Dropbox</button>
       <button id="fCopy" type="button">Copy folder name</button>
-      <button id="fCopyPath" type="button">Copy path</button>
+      <button id="fCopyPath" type="button">Copy paths</button>
     </div>
     <div class="hint" id="fHint"></div>
     <div class="hint" id="fRoot"></div>
+    <h3>Number register</h3>
+    <div class="hint" style="margin:0 0 6px">The master list is <b>Corporate\Finance\Client &amp; Project Numbers.xlsx</b>. Copy the line and paste it into the next free row (number, then name).</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="small" id="rCopyProj" type="button">Copy project line</button>
+      <button class="small" id="rCopyClient" type="button">Copy client line</button>
+    </div>
   </section>
 
   <section class="card">
@@ -358,11 +357,31 @@ button:disabled{opacity:.5;cursor:default}
 var LS='kickoff.v2', OLD='projectKickoff.autosave.v1';
 var LOGO='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';
 var STAFF=['Matt Johnson','Dennis Johnson','Mike Johnson','Logan Richert','Gabe Nelson','Jake Likness'];
-var SERVICES=[['Structural assessment','A'],['Barn ventilation','A'],['Design & permitting','B'],['Construction documentation (CQA)','B'],['Inspection / testing','A'],['Truss engineering','C'],['Civil / site plan','C'],['Other','C']];
-var TPL={A:{name:'Structural assessment',subs:['Notes','Pictures','Final Report']},
-         B:{name:'Design & permit (GDU / pit)',subs:['Design Report','Construction Quality Assurance Plan','Preconstruction Meeting','Construction Documentation Report','Operation & Maintenance','Permit']},
-         C:{name:'General project',subs:['Specs','Notes','Pictures','Final Report']},
-         N:{name:'No subfolders',subs:[]}};
+/* Services -> Technical subfolders and Drafting subfolders. Drafting sets seen in Dropbox:
+   Revit/structural = CALCS, PDF, REC, REF, STR; AutoCAD = CAD (+EXPORTS on GDUs); civil = CIV, REC. */
+var DR={R:['CALCS','PDF','REC','REF','STR'],C:['CAD'],G:['CAD','EXPORTS'],V:['CIV','REC'],N:[]};
+var SERVICES=[
+ {n:'Structural assessment / inspection',t:['Notes','Pictures','Final Report'],d:'N'},
+ {n:'Truss / structural repair',t:['Notes','Pictures','Specs','Final Report'],d:'R'},
+ {n:'Remodel / addition design',t:['Specs','Notes','Final Report'],d:'R'},
+ {n:'New building / barn design',t:['Specs','Notes','Final Report'],d:'R'},
+ {n:'Foundation / tank / pit design',t:['Specs','Notes','Final Report'],d:'R'},
+ {n:'GDU / manure facility design & permit',t:['Design Report','Construction Quality Assurance Plan','Preconstruction Meeting','Permit','Operation & Maintenance'],d:'G'},
+ {n:'Construction documentation (CQA)',t:['Construction Documentation Report','Preconstruction Meeting','Final Inspection','Pictures'],d:'N'},
+ {n:'Ventilation study / CFD',t:['Notes','Final Report'],d:'N'},
+ {n:'Civil / staking / drainage',t:['Notes'],d:'V'},
+ {n:'Permitting / environmental',t:['Permit','Notes'],d:'N'},
+ {n:'As-built / digital twin',t:['Notes','Pictures','Final Report'],d:'C'},
+ {n:'Digester / RNG',t:['Specs','Notes','Final Report'],d:'C'},
+ {n:'Other',t:['Notes','Final Report'],d:'C'}];
+var AREAS=[['tech','Technical'],['draft','Drafting'],['data','Data Files'],['prop','Proposals']];
+function svcDef(n){return SERVICES.filter(function(s){return s.n===n})[0]||SERVICES[SERVICES.length-1]}
+function uniq(a){var seen={},o=[];a.forEach(function(x){var k=x.toLowerCase();if(!seen[k]){seen[k]=1;o.push(x)}});return o}
+function autoSubs(P,which){
+  var defs=(P.services.length?P.services:['Other']).map(svcDef);
+  if(which==='tech')return uniq([].concat.apply([],defs.map(function(d){return d.t})));
+  return uniq([].concat.apply([],defs.map(function(d){return DR[d.d]})));
+}
 var KINDS=['Expense','Travel','Subconsultant','Other'];
 var $=function(id){return document.getElementById(id)};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -381,7 +400,8 @@ var DB,S=null;
 function defaults(){return{projects:[],clients:[],settings:{roles:[{name:'Principal / PE',rate:''},{name:'Engineer',rate:''},{name:'Technician',rate:''},{name:'Drafter',rate:''}],prepBy:'',staff:[]}}}
 function loadDB(){
   var d=defaults();
-  try{var r=JSON.parse(localStorage.getItem(LS));if(r){d.projects=r.projects||[];d.clients=r.clients||[];d.settings=Object.assign(d.settings,r.settings||{})}}catch(e){}
+  try{var r=JSON.parse(localStorage.getItem(LS));if(r){d.projects=r.projects||[];d.clients=r.clients||[];d.settings=Object.assign(d.settings,r.settings||{});d.scan=r.scan||null}}catch(e){}
+  DB=d;d.projects.forEach(norm);
   try{ /* bring the old single-draft autosave forward once */
     var o=localStorage.getItem(OLD);
     if(o&&!localStorage.getItem(LS)){ /* only before the new store exists */var p=JSON.parse(o),n=blankProject();
@@ -400,10 +420,30 @@ function blankCost(){return{kind:'Expense',desc:'',amount:'',markup:''}}
 function blankProject(){
   return{id:uid(),status:'draft',created:Date.now(),updated:Date.now(),
     clientName:'',clientNo:'',clientAddr:'',contacts:[blankContact()],
-    projName:'',projNo:'',projAddr:'',projDesc:'',service:'',lead:'',prepBy:(DB&&DB.settings.prepBy)||'',startDate:'',dueDate:'',propStatus:'',poNo:'',
+    projName:'',projNo:'',projAddr:'',projDesc:'',services:[],lead:'',prepBy:(DB&&DB.settings.prepBy)||'',startDate:'',dueDate:'',propStatus:'',poNo:'',
     billSame:true,billName:'',billEmail:'',billAddr:'',
-    subTpl:'C',subs:TPL.C.subs.slice(),subAuto:true,folderDone:null,
+    areas:{tech:true,draft:true,data:false,prop:false},subs:{tech:autoSubs({services:[]},'tech'),draft:autoSubs({services:[]},'draft')},subAuto:{tech:true,draft:true},
+    propName:'',propYear:String(new Date().getFullYear()),folderDone:null,
     fee:'fixed',fixedFee:'',nte:'',contPct:'',labor:[blankLabor()],costs:[],milestones:[{name:'',pct:''}],estNotes:''};
+}
+/* bring older saved projects up to the current shape */
+function norm(p){
+  var b=blankProject();
+  if(!Array.isArray(p.services))p.services=[];
+  if(p.service&&!p.services.length)p.services=[p.service];
+  delete p.service;delete p.subTpl;
+  if(!p.areas)p.areas=b.areas;
+  if(Array.isArray(p.subs))p.subs={tech:p.subs,draft:autoSubs(p,'draft')};
+  else if(!p.subs)p.subs=b.subs;
+  if(!p.subAuto||typeof p.subAuto!=='object')p.subAuto={tech:p.subAuto!==false,draft:true};
+  if(p.propName==null)p.propName='';
+  if(!p.propYear)p.propYear=b.propYear;
+  if(p.folderDone&&p.folderDone.path&&!p.folderDone.paths)p.folderDone.paths=[p.folderDone.path];
+  ['contacts','labor','costs','milestones'].forEach(function(k){if(!Array.isArray(p[k]))p[k]=b[k]});
+  if(!p.contacts.length)p.contacts=[blankContact()];
+  if(!p.labor.length)p.labor=[blankLabor()];
+  if(!p.milestones.length)p.milestones=[{name:'',pct:''}];
+  return p;
 }
 function isEmpty(p){
   if(['clientName','clientNo','clientAddr','projName','projNo','projAddr','projDesc','fixedFee','nte','estNotes','poNo','lead'].some(function(k){return String(p[k]||'').trim()}))return false;
@@ -540,8 +580,7 @@ function mergeIn(d){
   var added=0,upd=0;
   var list=d.projects||(d.projName!==undefined?[d]:[]);
   list.forEach(function(p){
-    var n=Object.assign(blankProject(),p);if(!n.contacts||!n.contacts.length)n.contacts=[blankContact()];if(!n.labor||!n.labor.length)n.labor=[blankLabor()];
-    n.costs=n.costs||[];n.milestones=n.milestones&&n.milestones.length?n.milestones:[{name:'',pct:''}];
+    var n=norm(Object.assign(blankProject(),p));
     var ex=byId(n.id);
     if(!ex){DB.projects.push(n);added++}else if((n.updated||0)>(ex.updated||0)){DB.projects[DB.projects.indexOf(ex)]=n;upd++}
   });
@@ -592,10 +631,17 @@ var hasFS=typeof window.showDirectoryPicker==='function';
 function idb(){return new Promise(function(res,rej){var r=indexedDB.open('kickoff-app',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
 function idbGet(k){return idb().then(function(db){return new Promise(function(res){var q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=function(){res(q.result)};q.onerror=function(){res(null)}})}).catch(function(){return null})}
 function idbSet(k,v){return idb().then(function(db){return new Promise(function(res){var t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=function(){res(true)};t.onerror=function(){res(false)}})}).catch(function(){return false})}
+/* root = the "Johnson Engineering Group" Dropbox folder (it holds Technical, Drafting, Data Files, Proposals).
+   An older choice of the Technical folder itself still works for the Technical area only. */
+async function childDir(h,name,create){try{return await h.getDirectoryHandle(name,{create:!!create})}catch(e){return null}}
+async function areaDir(R,name,create){
+  if(R.mode==='tech')return name==='Technical'?R.h:null;
+  return childDir(R.h,name,create);
+}
 async function getRoot(forcePick){
   var h=forcePick?null:await idbGet('technicalRoot');
   if(!h){
-    try{h=await window.showDirectoryPicker({mode:'readwrite',id:'jeg-technical'})}catch(e){return null}
+    try{h=await window.showDirectoryPicker({mode:'readwrite',id:'jeg-dropbox'})}catch(e){return null}
     await idbSet('technicalRoot',h);
   }
   try{
@@ -603,50 +649,67 @@ async function getRoot(forcePick){
     if(p!=='granted')p=await h.requestPermission({mode:'readwrite'});
     if(p!=='granted')return null;
   }catch(e){}
-  if(!/technical/i.test(h.name)&&!confirm('This folder is called "'+h.name+'", not "Technical". Use it anyway?'))return null;
-  return h;
+  if(await childDir(h,'Technical'))return{h:h,mode:'group'};
+  if(/technical/i.test(h.name))return{h:h,mode:'tech'};
+  alert('"'+h.name+'" does not look right. Choose the "Johnson Engineering Group" folder in your Dropbox (the one that contains Technical, Drafting and Proposals).');
+  await idbSet('technicalRoot',null);
+  return null;
 }
-async function scanTechnical(root,onProgress){
-  var out=[];
-  for await(var ent of root.entries()){
-    var name=ent[0],h=ent[1];
-    if(h.kind!=='directory')continue;
-    var m=/^(\d{4}) (.+)$/.exec(name);
-    if(!m||m[1]==='0000'||/conflict/i.test(name))continue;
-    var known=[],width=2;
-    try{for await(var pe of h.entries()){
-      if(pe[1].kind!=='directory')continue;
-      var pm=/^(\d{1,3})(?:\s|$)/.exec(pe[0]);
-      if(pm){known.push(parseInt(pm[1],10));width=Math.max(width,pm[1].length)}
-    }}catch(e){}
-    out.push({no:m[1],name:m[2].trim(),known:known,width:width});
-    if(onProgress)onProgress(out.length);
+async function scanDropbox(R,onProgress){
+  var map={},count=0;
+  async function readArea(dir,authoritative){
+    for await(var ent of dir.entries()){
+      var name=ent[0],h=ent[1];
+      if(h.kind!=='directory')continue;
+      var m=/^(\d{4}) (.+)$/.exec(name);
+      if(!m||m[1]==='0000'||/conflict/i.test(name))continue;
+      var c=map[m[1]];
+      if(!c){c=map[m[1]]={no:m[1],name:m[2].trim(),known:[],width:2};count++;if(onProgress)onProgress(count)}
+      else if(authoritative)c.name=m[2].trim();
+      try{for await(var pe of h.entries()){
+        if(pe[1].kind!=='directory')continue;
+        var pm=/^(\d{1,3})(?:\s|$)/.exec(pe[0]);
+        if(pm){var n=parseInt(pm[1],10);if(c.known.indexOf(n)<0)c.known.push(n);c.width=Math.max(c.width,pm[1].length)}
+      }}catch(e){}
+    }
   }
-  return out;
+  var tech=await areaDir(R,'Technical');if(tech)await readArea(tech,true);
+  var dr=await areaDir(R,'Drafting');if(dr)await readArea(dr,false);
+  var props={},pr=await areaDir(R,'Proposals');
+  if(pr){for await(var ye of pr.entries()){
+    var ym=/^(\d{4}) Proposals$/.exec(ye[0]);if(!ym||ye[1].kind!=='directory')continue;
+    var mx=0;try{for await(var pe2 of ye[1].entries()){var nm=/^(\d+)(?:\s|$)/.exec(pe2[0]);if(nm)mx=Math.max(mx,parseInt(nm[1],10))}}catch(e){}
+    props[ym[1]]=mx;
+  }}
+  return{clients:Object.keys(map).map(function(k){return map[k]}),proposals:props};
 }
-function applyScan(list){
+function applyScan(res){
   var added=0;
-  list.forEach(function(s){
+  res.clients.forEach(function(s){
     var c=findClientByNo(s.no);
     if(!c){DB.clients.push({no:s.no,name:s.name,addr:'',contacts:[],known:s.known,width:s.width});added++}
     else{c.known=s.known;c.width=s.width;if(!c.name)c.name=s.name}
   });
+  DB.scan={proposals:res.proposals||{},at:Date.now()};
   saveDB();return added;
 }
 $('cScan').onclick=async function(){
-  var root=await getRoot(false);if(!root)return;
+  var R=await getRoot(false);if(!R)return;
   $('cScanHint').textContent='Reading…';
-  try{var list=await scanTechnical(root,function(n){$('cScanHint').textContent='Reading… '+n+' clients'});
-    var a=applyScan(list);renderClients();$('cScanHint').textContent='Read '+list.length+' client folders ('+a+' new). Stored on this device only.'}
+  try{var res=await scanDropbox(R,function(n){$('cScanHint').textContent='Reading… '+n+' clients'});
+    var a=applyScan(res);renderClients();
+    $('cScanHint').textContent='Read '+res.clients.length+' client folders ('+a+' new) and the proposal numbers. Stored on this device only.'}
   catch(e){$('cScanHint').textContent='Could not read that folder: '+e.message}
 };
-async function createFolders(root,o){
+
+/* make client folder -> numbered project folder -> subfolders inside one area folder */
+async function ensureTree(base,o,subs){
   var res={path:[],clientCreated:false,projCreated:false,subsCreated:[],projExisted:false};
   var cdir=null,cname=null;
-  for await(var e of root.entries()){
+  for await(var e of base.entries()){
     if(e[1].kind==='directory'&&(e[0]===o.clientNo||e[0].indexOf(o.clientNo+' ')===0)){cdir=e[1];cname=e[0];break}
   }
-  if(!cdir){cname=o.clientNo+' '+cleanName(o.clientName);cdir=await root.getDirectoryHandle(cname,{create:true});res.clientCreated=true}
+  if(!cdir){cname=o.clientNo+' '+cleanName(o.clientName);cdir=await base.getDirectoryHandle(cname,{create:true});res.clientCreated=true}
   res.path.push(cname);
   var pdir=null,pname=null,want=parseInt(o.projNo,10);
   for await(var f of cdir.entries()){
@@ -656,30 +719,76 @@ async function createFolders(root,o){
   if(pdir){res.projExisted=true}else{pname=o.projNo+' '+cleanName(o.projName);pdir=await cdir.getDirectoryHandle(pname,{create:true});res.projCreated=true}
   res.path.push(pname);
   var have={};for await(var g of pdir.entries()){have[g[0].toLowerCase()]=1}
-  for(var i=0;i<o.subs.length;i++){
-    var s=cleanName(o.subs[i]);if(!s)continue;
+  for(var i=0;i<subs.length;i++){
+    var s=cleanName(subs[i]);if(!s)continue;
     if(!have[s.toLowerCase()]){await pdir.getDirectoryHandle(s,{create:true});res.subsCreated.push(s)}
   }
   return res;
 }
+/* Proposals\YYYY Proposals\NN Name — numbered per year, not per client */
+async function ensureProposal(base,year,name){
+  var ydir=null,yname=null;
+  for await(var e of base.entries()){if(e[1].kind==='directory'&&e[0].indexOf(year+' Proposals')===0){ydir=e[1];yname=e[0];break}}
+  var created=false;
+  if(!ydir){yname=year+' Proposals';ydir=await base.getDirectoryHandle(yname,{create:true})}
+  var mx=0,found=null,want=cleanName(name).toLowerCase();
+  for await(var f of ydir.entries()){
+    var m=/^(\d+)(?:\s+(.*))?$/.exec(f[0]);if(!m||f[1].kind!=='directory')continue;
+    mx=Math.max(mx,parseInt(m[1],10));
+    if(m[2]&&m[2].trim().toLowerCase()===want)found=f[0];
+  }
+  var pname=found;
+  if(!found){pname=pad(mx+1,2)+' '+cleanName(name);await ydir.getDirectoryHandle(pname,{create:true});created=true}
+  return{path:[yname,pname],projCreated:created,projExisted:!created,clientCreated:false,subsCreated:[]};
+}
+async function createAreas(R,o){
+  var out=[];
+  var want=[['tech','Technical'],['draft','Drafting'],['data','Data Files']];
+  for(var i=0;i<want.length;i++){
+    var k=want[i][0],nm=want[i][1];if(!o.areas[k])continue;
+    var base=await areaDir(R,nm,false);
+    if(!base){out.push({area:nm,skipped:R.mode==='tech'?'choose the Johnson Engineering Group folder to include this one':'no "'+nm+'" folder found'});continue}
+    var r=await ensureTree(base,o,k==='data'?[]:(o.subs[k]||[]));r.area=nm;out.push(r);
+  }
+  if(o.areas.prop){
+    var pb=await areaDir(R,'Proposals',false);
+    if(!pb)out.push({area:'Proposals',skipped:R.mode==='tech'?'choose the Johnson Engineering Group folder to include this one':'no "Proposals" folder found'});
+    else{var pr=await ensureProposal(pb,o.propYear,o.propName||o.projName);pr.area='Proposals';out.push(pr)}
+  }
+  return out;
+}
+function nextProposalNo(year){var m=DB.scan&&DB.scan.proposals&&DB.scan.proposals[year];return m!=null?pad(m+1,2):''}
 function folderNames(P){
   var c=(P.clientNo||'____')+' '+(cleanName(P.clientName)||'Client name');
   var p=(P.projNo||'__')+' '+(cleanName(P.projName)||'Project name');
   return{client:c,proj:p,path:'Technical\\'+c+'\\'+p};
 }
+/* what will be created, per ticked area */
+function plan(P){
+  var n=folderNames(P),out=[];
+  if(P.areas.tech)out.push({k:'tech',area:'Technical',path:'Technical\\'+n.client+'\\'+n.proj,subs:P.subs.tech});
+  if(P.areas.draft)out.push({k:'draft',area:'Drafting',path:'Drafting\\'+n.client+'\\'+n.proj,subs:P.subs.draft});
+  if(P.areas.data)out.push({k:'data',area:'Data Files',path:'Data Files\\'+n.client+'\\'+n.proj,subs:[]});
+  if(P.areas.prop){var nm=cleanName(P.propName||P.projName)||'Proposal name';out.push({k:'prop',area:'Proposals',path:'Proposals\\'+P.propYear+' Proposals\\'+(nextProposalNo(P.propYear)||'NN')+' '+nm,subs:[]})}
+  return out;
+}
 $('fCreate').onclick=async function(){
   if(!hasFS)return;
   var miss=[];if(!S.clientNo)miss.push('client number');if(!S.clientName)miss.push('client name');if(!S.projNo)miss.push('project number');if(!S.projName)miss.push('project name');
   if(miss.length){alert('Fill in the '+miss.join(', ')+' first.');return}
-  var root=await getRoot(false);if(!root)return;
-  var n=folderNames(S);
-  if(!confirm('Create these folders in "'+root.name+'"?\n\n'+n.path+(S.subs.length?'\n   + '+S.subs.join('\n   + '):'')+'\n\nAnything that already exists is left alone.'))return;
+  var pl=plan(S);if(!pl.length){alert('Tick at least one folder location first.');return}
+  var R=await getRoot(false);if(!R)return;
+  var txt=pl.map(function(x){return x.path+(x.subs.length?'\n      + '+x.subs.join('\n      + '):'')}).join('\n\n');
+  if(!confirm('Create these folders in your Dropbox?\n\n'+txt+'\n\nAnything that already exists is left alone.'))return;
   try{
-    var r=await createFolders(root,{clientNo:S.clientNo,clientName:S.clientName,projNo:S.projNo,projName:S.projName,subs:S.subs});
-    S.folderDone={at:Date.now(),path:'Technical\\'+r.path.join('\\')};touch();persistNow();
-    toast(r.projExisted?'Project folder already existed. Added '+r.subsCreated.length+' missing subfolder(s).':'Folder created in Dropbox.');
+    var rep=await createAreas(R,{clientNo:S.clientNo,clientName:S.clientName,projNo:S.projNo,projName:S.projName,areas:S.areas,subs:S.subs,propYear:S.propYear,propName:S.propName});
+    var made=rep.filter(function(r){return !r.skipped}),skipped=rep.filter(function(r){return r.skipped});
+    if(made.length){S.folderDone={at:Date.now(),paths:made.map(function(r){return r.area+'\\'+r.path.join('\\')})};touch();persistNow()}
     refreshFolder();
-  }catch(e){alert('Could not create the folder: '+e.message)}
+    var msg=made.length+' location'+(made.length===1?'':'s')+' done.';
+    if(skipped.length)msg+=' Skipped: '+skipped.map(function(r){return r.area+' ('+r.skipped+')'}).join('; ');
+    if(skipped.length)alert(msg);else toast(msg);
+  }catch(e){alert('Could not create the folders: '+e.message)}
 };
 $('fRoot').addEventListener('click',async function(e){
   if(e.target.id==='fChange'){var r=await getRoot(true);if(r)refreshFolder()}});
@@ -689,7 +798,9 @@ function copyText(t,msg){
   function fallback(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');done()}catch(e){prompt('Copy this:',t)}a.remove()}
 }
 $('fCopy').onclick=function(){copyText(folderNames(S).proj,'Folder name copied')};
-$('fCopyPath').onclick=function(){copyText(folderNames(S).path,'Path copied')};
+$('fCopyPath').onclick=function(){copyText(plan(S).map(function(x){return x.path}).join('\n'),'Paths copied')};
+$('rCopyProj').onclick=function(){copyText((S.projNo||'')+'\t'+(S.projName||''),'Project line copied')};
+$('rCopyClient').onclick=function(){copyText((S.clientNo||'')+'\t'+(S.clientName||''),'Client line copied')};
 
 /* ---------- form rendering ---------- */
 function renderForm(){
@@ -697,13 +808,9 @@ function renderForm(){
     var k=el.getAttribute('data-k');
     if(el.type==='checkbox')el.checked=!!S[k];else el.value=S[k]==null?'':S[k];
   });
-  $('service').innerHTML='<option value="">—</option>'+SERVICES.map(function(s){return '<option>'+esc(s[0])+'</option>'}).join('');
-  $('service').value=S.service||'';
   $('staffList').innerHTML=STAFF.concat(DB.settings.staff).map(function(n){return '<option value="'+esc(n)+'">'}).join('');
   $('clientList').innerHTML=DB.clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.no)+'</option>'}).join('');
-  $('subTpl').innerHTML=Object.keys(TPL).map(function(k){return '<option value="'+k+'">'+esc(TPL[k].name)+'</option>'}).join('')+'<option value="X">Custom</option>';
-  $('subTpl').value=S.subAuto||TPL[S.subTpl]?S.subTpl:'X';
-  renderContacts();renderLabor();renderCosts();renderMiles();renderSubs();renderFee();
+  renderContacts();renderLabor();renderCosts();renderMiles();renderSvc();renderAreas();renderFee();
   $('billBox').classList.toggle('hidden',!!S.billSame);
   $('bComplete').textContent=S.status==='complete'?'Reopen as draft':'Mark complete';
   Array.prototype.forEach.call(document.querySelectorAll('input[data-email]'),function(i){i.classList.remove('bad')});
@@ -757,9 +864,44 @@ function renderMiles(){
     '<div class="c-x"><button class="x" type="button" data-rmm="'+i+'" aria-label="Remove milestone">×</button></div></div>';
   }).join('');
 }
-function renderSubs(){
-  var all=S.subs.slice();
-  $('subChips').innerHTML=all.map(function(s,i){return '<label class="chip on"><span>'+esc(s)+'</span><button type="button" class="x" style="min-height:22px;width:22px;font-size:1rem" data-rms="'+i+'" aria-label="Remove">×</button></label>'}).join('')||'<span class="hint">No subfolders.</span>';
+function renderSvc(){
+  var known=SERVICES.map(function(s){return s.n});
+  var extra=S.services.filter(function(n){return known.indexOf(n)<0}).map(function(n){return{n:n}});
+  $('svcChips').innerHTML=SERVICES.concat(extra).map(function(s){var on=S.services.indexOf(s.n)>=0;
+    return '<span class="chip'+(on?' on':'')+'" role="checkbox" aria-checked="'+on+'" tabindex="0" data-svc="'+esc(s.n)+'">'+esc(s.n)+'</span>'}).join('');
+}
+var AREA_NOTE={tech:'documents, reports, notes',draft:'CAD and Revit files',data:'survey data and point files',prop:'proposal and estimate, numbered per year'};
+function renderAreas(){
+  var h='';
+  AREAS.forEach(function(a){
+    var k=a[0],on=!!S.areas[k];
+    h+='<div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px">'+
+      '<label class="chip'+(on?' on':'')+'" style="display:inline-flex"><input type="checkbox" data-ar="'+k+'"'+(on?' checked':'')+'><span>'+a[1]+'</span></label>'+
+      '<span class="hint" style="margin-left:8px">'+AREA_NOTE[k]+'</span>';
+    if(on){
+      h+='<div class="path" data-path="'+k+'"></div>';
+      if(k==='tech'||k==='draft'){
+        h+='<div class="chips">'+(S.subs[k].map(function(s,i){return '<span class="chip on">'+esc(s)+' <button type="button" class="x" style="min-height:22px;width:22px;font-size:1rem" data-rms="'+k+':'+i+'" aria-label="Remove">×</button></span>'}).join('')||'<span class="hint">No subfolders.</span>')+'</div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input data-subadd="'+k+'" placeholder="Add a subfolder…" style="max-width:240px;min-height:36px">'+
+          '<button class="small" type="button" data-subaddbtn="'+k+'">Add</button>'+
+          (S.subAuto[k]?'':'<button class="small" type="button" data-subreset="'+k+'">Reset to suggested</button>')+'</div>';
+      }
+      if(k==='prop'){
+        h+='<div class="grid" style="margin-top:8px"><div><label>Proposal folder name</label><input data-k="propName" value="'+esc(S.propName)+'" placeholder="'+esc(S.projName||'Project name')+'"></div>'+
+          '<div><label>Year</label><input data-k="propYear" inputmode="numeric" value="'+esc(S.propYear)+'"></div></div>'+
+          '<div class="hint">The proposal number is the next one in that year\'s folder'+(nextProposalNo(S.propYear)?' (currently '+nextProposalNo(S.propYear)+')':' (read the Dropbox folder from Clients to preview it)')+'. If a proposal with this name already exists it is reused.</div>';
+      }
+    }
+    h+='</div>';
+  });
+  $('areas').innerHTML=h;updatePaths();
+}
+function updatePaths(){
+  plan(S).forEach(function(x){var el=document.querySelector('[data-path="'+x.k+'"]');if(el)el.textContent=x.path});
+}
+function setAutoSubs(){
+  ['tech','draft'].forEach(function(k){if(S.subAuto[k])S.subs[k]=autoSubs(S,k)});
+  if(S.subAuto.draft)S.areas.draft=S.subs.draft.length>0;
 }
 function renderFee(){
   var fixed=S.fee==='fixed';
@@ -836,14 +978,13 @@ function derived(){
   else $('missing').classList.add('hidden');
 }
 function refreshFolder(){
-  var n=folderNames(S);
-  $('fPath').textContent=n.path;
+  updatePaths();
   $('fCreate').classList.toggle('hidden',!hasFS);
   var hint='';
-  if(S.folderDone)hint='<span class="ok">Created '+fmtDate(S.folderDone.at)+': '+esc(S.folderDone.path)+'</span>';
-  else if(!hasFS)hint='Creating folders directly needs Chrome or Edge on a computer. Here, use <b>Copy folder name</b> and paste it when you make the folder in Dropbox.';
+  if(S.folderDone)hint='<span class="ok">Created '+fmtDate(S.folderDone.at)+': '+(S.folderDone.paths||[]).map(esc).join('<br>')+'</span>';
+  else if(!hasFS)hint='Creating folders directly needs Chrome or Edge on a computer. Here, use <b>Copy folder name</b> or <b>Copy paths</b> and use them when you make the folders in Dropbox.';
   $('fHint').innerHTML=hint;
-  if(hasFS){$('fRoot').innerHTML='Folders are made inside the Dropbox <b>Technical</b> folder you choose the first time. <button type="button" class="small" id="fChange">Choose a different folder</button>'}else $('fRoot').innerHTML='';
+  $('fRoot').innerHTML=hasFS?'Folders are made inside your Dropbox <b>Johnson Engineering Group</b> folder, which you choose the first time. <button type="button" class="small" id="fChange">Choose a different folder</button>':'';
 }
 
 /* ---------- events ---------- */
@@ -855,7 +996,6 @@ document.addEventListener('input',function(e){
     S[k]=t.value;
     if(k==='clientName'){var c=findClientByName(t.value);if(c&&!lastClientFill||c&&lastClientFill!==c.no){fillFromClient(c)}}
     if(k==='clientNo'){var c2=findClientByNo(t.value);if(c2&&!S.clientName){S.clientName=c2.name;$('clientName').value=c2.name}}
-    if(k==='service'){var s=SERVICES.filter(function(x){return x[0]===t.value})[0];if(s&&S.subAuto){S.subTpl=s[1];S.subs=TPL[s[1]].subs.slice();$('subTpl').value=s[1];renderSubs()}}
     if(k==='fixedFee'||k==='contPct'||k==='nte')renderMiles();
     touch();return;
   }
@@ -891,7 +1031,7 @@ function fmtPhone(v){
 document.addEventListener('change',function(e){
   var t=e.target;if(!S)return;
   if(t.id==='billSame'){S.billSame=t.checked;$('billBox').classList.toggle('hidden',t.checked);touch();return}
-  if(t.id==='subTpl'){var v=t.value;if(v!=='X'){S.subTpl=v;S.subs=TPL[v].subs.slice();S.subAuto=true;renderSubs();touch()}else{S.subAuto=false}return}
+  if(t.hasAttribute('data-ar')){S.areas[t.getAttribute('data-ar')]=t.checked;if(t.getAttribute('data-ar')==='draft')S.subAuto.draft=false;renderAreas();touch();return}
 });
 document.addEventListener('focusout',function(e){
   var t=e.target;if(!S)return;
@@ -914,7 +1054,9 @@ document.addEventListener('click',function(e){
   if(b.hasAttribute('data-rml')){S.labor.splice(+b.getAttribute('data-rml'),1);if(!S.labor.length)S.labor.push(blankLabor());renderLabor();touch();return}
   if(b.hasAttribute('data-rmo')){S.costs.splice(+b.getAttribute('data-rmo'),1);renderCosts();touch();return}
   if(b.hasAttribute('data-rmm')){S.milestones.splice(+b.getAttribute('data-rmm'),1);if(!S.milestones.length)S.milestones.push({name:'',pct:''});renderMiles();touch();return}
-  if(b.hasAttribute('data-rms')){S.subs.splice(+b.getAttribute('data-rms'),1);S.subAuto=false;$('subTpl').value='X';renderSubs();touch();return}
+  if(b.hasAttribute('data-rms')){var q=b.getAttribute('data-rms').split(':');S.subs[q[0]].splice(+q[1],1);S.subAuto[q[0]]=false;renderAreas();touch();return}
+  if(b.hasAttribute('data-subaddbtn')){addSub(b.getAttribute('data-subaddbtn'));return}
+  if(b.hasAttribute('data-subreset')){var rk=b.getAttribute('data-subreset');S.subAuto[rk]=true;setAutoSubs();renderAreas();touch();return}
 });
 function focusLast(sel){var r=document.querySelectorAll(sel);if(r.length){var i=r[r.length-1].querySelector('input');if(i)i.focus()}}
 $('addContact').onclick=function(){S.contacts.push(blankContact());renderContacts();touch();focusLast('#contacts .contact')};
@@ -926,9 +1068,21 @@ $('mapBtn').onclick=function(){
   var a=S.projAddr.replace(/\s*\n\s*/g,', ').trim();if(!a){toast('Enter a project address first');return}
   window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a),'_blank','noopener');
 };
-$('subAddBtn').onclick=addSub;
-$('subAdd').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addSub()}});
-function addSub(){var v=cleanName($('subAdd').value);if(!v)return;if(S.subs.map(function(x){return x.toLowerCase()}).indexOf(v.toLowerCase())<0)S.subs.push(v);S.subAuto=false;$('subTpl').value='X';$('subAdd').value='';renderSubs();touch()}
+document.addEventListener('keydown',function(e){
+  var t=e.target;if(!S)return;
+  if(e.key==='Enter'&&t.hasAttribute('data-subadd')){e.preventDefault();addSub(t.getAttribute('data-subadd'))}
+  if((e.key==='Enter'||e.key===' ')&&t.hasAttribute('data-svc')){e.preventDefault();toggleSvc(t.getAttribute('data-svc'))}
+});
+function addSub(k){var inp=document.querySelector('[data-subadd="'+k+'"]'),v=cleanName(inp.value);if(!v)return;
+  if(S.subs[k].map(function(x){return x.toLowerCase()}).indexOf(v.toLowerCase())<0)S.subs[k].push(v);
+  S.subAuto[k]=false;renderAreas();touch();var n=document.querySelector('[data-subadd="'+k+'"]');if(n)n.focus()}
+function toggleSvc(n){
+  var i=S.services.indexOf(n);if(i<0)S.services.push(n);else S.services.splice(i,1);
+  setAutoSubs();renderSvc();renderAreas();touch();
+}
+document.addEventListener('click',function(e){
+  var s=e.target.closest('[data-svc]');if(s&&S)toggleSvc(s.getAttribute('data-svc'));
+});
 
 /* roles dialog */
 function renderRoles(){
@@ -966,7 +1120,7 @@ function summaryText(P){
   L.push('NEW PROJECT KICKOFF — '+jobRef(P));
   L.push('');L.push('Project: '+(P.projName||'')+(P.projNo?' ('+P.projNo+')':''));
   if(P.projAddr)L.push('Address: '+P.projAddr.replace(/\s*\n\s*/g,', '));
-  if(P.service)L.push('Service: '+P.service);
+  if(P.services.length)L.push('Services: '+P.services.join('; '));
   if(P.lead)L.push('Lead: '+P.lead);
   if(P.startDate||P.dueDate)L.push('Dates: '+(P.startDate||'?')+' to '+(P.dueDate||'?'));
   if(P.projDesc)L.push('Description: '+P.projDesc);
@@ -982,7 +1136,7 @@ function summaryText(P){
   if(c.hrs>0)L.push('Estimated hours: '+comma(c.hrs,2).replace(/\.00$/,''));
   if(P.fee==='fixed'){P.milestones.filter(function(m){return m.name||m.pct}).forEach(function(m){L.push('  Milestone: '+m.name+' — '+m.pct+'% ('+money(c.total*num(m.pct)/100)+')')})}
   if(P.estNotes)L.push('Notes: '+P.estNotes);
-  L.push('');L.push('Folder: '+folderNames(P).path);
+  L.push('');plan(P).forEach(function(x){L.push(x.area+' folder: '+x.path)});
   return L.join('\n');
 }
 $('bShare').onclick=function(){
@@ -995,7 +1149,7 @@ function buildPrint(){
   if(!S)return;
   var P=S,c=calc(P),fixed=P.fee==='fixed',h='';
   h+='<div class="ph"><div><div class="eyebrow">Johnson Engineering Group</div><h1>New Project Kickoff</h1><div>'+esc(jobRef(P))+(P.status==='complete'?'':' · DRAFT')+'</div></div><img src="data:image/jpeg;base64,'+LOGO+'" alt=""></div>';
-  h+='<h2>Project</h2><div class="kv">'+kv('Project',P.projName)+kv('Project JEG #',P.projNo)+kv('Address',P.projAddr)+kv('Service',P.service)+kv('Lead',P.lead)+
+  h+='<h2>Project</h2><div class="kv">'+kv('Project',P.projName)+kv('Project JEG #',P.projNo)+kv('Address',P.projAddr)+kv('Services',P.services.join('; '))+kv('Lead',P.lead)+
      kv('Start',P.startDate)+kv('Target completion',P.dueDate)+kv('Proposal / contract',P.propStatus)+kv('PO / contract #',P.poNo)+kv('Description',P.projDesc)+'</div>';
   h+='<h2>Client</h2><div class="kv">'+kv('Client',P.clientName)+kv('Client JEG #',P.clientNo)+kv('Address',P.clientAddr)+'</div>';
   var cs=P.contacts.filter(function(x){return x.name||x.title||x.email||x.phone});
@@ -1016,7 +1170,7 @@ function buildPrint(){
   if(fixed&&ms.length){h+='<table><thead><tr><th>Billing milestone</th><th class="r">% of fee</th><th class="r">Amount</th></tr></thead><tbody>';
     ms.forEach(function(m){h+='<tr><td>'+esc(m.name)+'</td><td class="r">'+esc(m.pct)+'</td><td class="r">'+money(c.total*num(m.pct)/100)+'</td></tr>'});h+='</tbody></table>'}
   if(P.estNotes)h+='<h2>Estimate notes</h2><pre>'+esc(P.estNotes)+'</pre>';
-  h+='<h2>Folder</h2><div class="kv"><b>Path</b><div>'+esc(folderNames(P).path)+'</div>'+(P.subs.length?'<b>Subfolders</b><div>'+esc(P.subs.join(', '))+'</div>':'')+'</div>';
+  h+='<h2>Folders</h2><div class="kv">'+plan(P).map(function(x){return '<b>'+esc(x.area)+'</b><div>'+esc(x.path)+(x.subs.length?'<br><span style="color:#6b8592">'+esc(x.subs.join(', '))+'</span>':'')+'</div>'}).join('')+'</div>';
   h+='<div style="margin-top:18px;font-size:.78rem;color:#6b8592">Prepared '+fmtDate(Date.now())+(P.prepBy?' by '+esc(P.prepBy):'')+'</div>';
   $('printView').innerHTML=h;
 }
@@ -1033,7 +1187,7 @@ DB=loadDB();
 try{if(!localStorage.getItem(LS))saveDB()}catch(e){}
 show('dash');
 if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){navigator.serviceWorker.register("sw.js").catch(function(){})}
-window.__kickoff={DB:function(){return DB},S:function(){return S},calc:calc,createFolders:createFolders,scanTechnical:scanTechnical,applyScan:applyScan,
+window.__kickoff={DB:function(){return DB},S:function(){return S},calc:calc,createAreas:createAreas,scanDropbox:scanDropbox,applyScan:applyScan,plan:plan,toggleSvc:toggleSvc,norm:norm,
   nextProjNum:nextProjNum,nextClientNo:nextClientNo,summaryText:summaryText,missingList:missingList,openProject:openProject,show:show,persistNow:persistNow,buildPrint:buildPrint,folderNames:folderNames,mergeIn:mergeIn,blankProject:blankProject};
 })();
 </script>
