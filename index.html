@@ -719,19 +719,20 @@ function applyScan(res){
   res.clients.forEach(function(s){
     var c=findClientByNo(s.no);
     if(!c){DB.clients.push({no:s.no,name:s.name,addr:'',contacts:[],known:s.known,width:s.width});added++}
-    else{c.known=s.known;c.width=s.width;if(!c.name)c.name=s.name}
+    else{c.known=s.known;c.width=s.width;c.name=s.name}
   });
   DB.scan={proposals:res.proposals||{},at:Date.now()};
   saveDB();return added;
 }
-$('cScan').onclick=async function(){
-  var R=await getRoot(false);if(!R)return;
-  $('cScanHint').textContent='Reading…';
-  try{var res=await scanDropbox(R,function(n){$('cScanHint').textContent='Reading… '+n+' clients'});
-    var a=applyScan(res);renderClients();
-    $('cScanHint').textContent='Read '+res.clients.length+' client folders ('+a+' new) and the proposal numbers. Stored on this device only.'}
-  catch(e){$('cScanHint').textContent='Could not read that folder: '+e.message}
-};
+async function runScan(say){
+  var R=await getRoot(false);if(!R)return false;
+  say('Reading…');
+  try{var res=await scanDropbox(R,function(n){say('Reading… '+n+' clients')});
+    var a=applyScan(res);
+    say('Read '+res.clients.length+' client folders ('+a+' new) and the proposal numbers. Stored on this device only.');return true}
+  catch(e){say('Could not read that folder: '+e.message);return false}
+}
+$('cScan').onclick=async function(){await runScan(function(m){$('cScanHint').textContent=m});renderClients()};
 
 /* make client folder -> numbered project folder -> subfolders inside one area folder */
 async function ensureTree(base,o,subs){
@@ -1007,7 +1008,10 @@ function derived(){
   /* client hint */
   var hc='',byNo=findClientByNo(P.clientNo),byName=findClientByName(P.clientName);
   if(P.clientName&&byName&&!P.clientNo)hc='';
-  if(byName||byNo){hc='<span class="ok">Known client: '+esc((byNo||byName).no+' '+(byNo||byName).name)+'.</span>'}
+  if(byName||byNo){var kc=byNo||byName;
+    hc=kc.name.toLowerCase()!==P.clientName.trim().toLowerCase()&&byNo&&!byName
+      ?'<span class="warn">'+esc(kc.no)+' is saved as "'+esc(kc.name)+'". It will be updated to "'+esc(P.clientName.trim())+'" when this saves.</span>'
+      :'<span class="ok">Known client: '+esc(kc.no+' '+kc.name)+'.</span>'}
   else if(P.clientName.trim()&&!P.clientNo.trim()){hc='New client? Next free number is <b>'+nextClientNo()+'</b> <button type="button" id="useClientNo">Use it</button>'}
   if(byNo&&byName&&byNo!==byName)hc='<span class="err">That number belongs to "'+esc(byNo.name)+'", not "'+esc(P.clientName)+'".</span>';
   $('hClient').innerHTML=hc;
@@ -1015,7 +1019,10 @@ function derived(){
   var hp='';
   if(P.clientNo.trim()){
     var used=usedProjNums(P.clientNo.trim(),P.id),pn=parseInt(P.projNo,10);
-    if(P.projNo&&used.indexOf(pn)>=0)hp='<span class="err">Number '+esc(P.projNo)+' is already used for this client.</span> Next free: <b>'+nextProjNum(P.clientNo.trim())+'</b> <button type="button" id="useProjNo">Use it</button>';
+    var kc2=findClientByNo(P.clientNo.trim()),blind=!DB.scan&&!used.length&&!(kc2&&kc2.known&&kc2.known.length);
+    if(blind)hp=hasFS?'Next number unknown: your Dropbox has not been read on this device yet. <button type="button" id="scanNow">Read Dropbox</button>'
+      :'No project numbers are on file for this client on this device. Type the number, or import the client list from your computer (Clients).';
+    else if(P.projNo&&used.indexOf(pn)>=0)hp='<span class="err">Number '+esc(P.projNo)+' is already used for this client.</span> Next free: <b>'+nextProjNum(P.clientNo.trim())+'</b> <button type="button" id="useProjNo">Use it</button>';
     else if(!P.projNo)hp='Next free number: <b>'+nextProjNum(P.clientNo.trim())+'</b> <button type="button" id="useProjNo">Use it</button>';
   }
   $('hProj').innerHTML=hp;
@@ -1120,6 +1127,7 @@ document.addEventListener('focusin',function(e){var t=e.target;if(t.classList&&t
 
 document.addEventListener('click',function(e){
   var b=e.target.closest('button');if(!b||!S)return;
+  if(b.id==='scanNow'){var hp0=$('hProj');runScan(function(m){hp0.textContent=m}).then(function(ok){if(ok)derived()});return}
   if(b.id==='useClientNo'){S.clientNo=nextClientNo();$('clientNo').value=S.clientNo;touch();return}
   if(b.id==='useProjNo'){S.projNo=nextProjNum(S.clientNo.trim());$('projNo').value=S.projNo;touch();return}
   if(b.hasAttribute('data-fee')){S.fee=b.getAttribute('data-fee');renderFee();renderMiles();touch();return}
