@@ -78,6 +78,12 @@ button:disabled{opacity:.5;cursor:default}
 .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:.85rem;background:#fff;cursor:pointer;margin:0;font-weight:400;font-family:var(--font-body)}
 .chip.on{background:var(--brand-50);border-color:var(--brand);color:var(--ink-700);font-weight:700}
 .chip input{display:none}
+.dd{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 18px rgba(49,71,79,.2);max-height:280px;overflow:auto;z-index:15}
+.dd .g{font-family:var(--font-heading);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6b8592;padding:8px 12px 2px}
+.dd .it{padding:10px 12px;cursor:pointer;font-size:.95rem}
+.dd .it.on,.dd .it:hover{background:var(--brand-50)}
+.dd .it.new{border-top:1px solid var(--line);color:var(--brand-700);font-weight:700}
+.dd .none{padding:10px 12px;color:#6b8592;font-size:.9rem}
 .path{font-family:Consolas,Menlo,monospace;font-size:.85rem;background:var(--ink-50);border-radius:6px;padding:8px 10px;word-break:break-all;margin:4px 0}
 .banner{background:#fff8e1;border:1px solid #f0d78c;color:#7a5a00;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.88rem}
 .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 16px;padding-bottom:max(10px,env(safe-area-inset-bottom));z-index:5}
@@ -217,7 +223,8 @@ button:disabled{opacity:.5;cursor:default}
       </div>
       <div class="full"><label for="projDesc">Project description</label><textarea id="projDesc" data-k="projDesc" rows="5" placeholder="Scope, what the client asked for, key dates…"></textarea></div>
       <div class="full"><label>Services on this project <span class="hint" style="font-weight:400">pick every kind of work that applies</span></label>
-        <div class="chips" id="svcChips"></div></div>
+        <div class="chips" id="svcChips"></div>
+        <div style="position:relative"><input id="svcInput" placeholder="Type to search the list, or type your own and press Enter" autocomplete="off" role="combobox" aria-expanded="false"><div id="svcList" class="dd hidden"></div></div></div>
       <div><label for="lead">Lead / project manager</label><input id="lead" data-k="lead" list="staffList" autocomplete="off"><datalist id="staffList"></datalist></div>
       <div><label for="startDate">Start date</label><input id="startDate" data-k="startDate" type="date"></div>
       <div><label for="dueDate">Target completion</label><input id="dueDate" data-k="dueDate" type="date"></div>
@@ -361,21 +368,45 @@ var STAFF=['Matt Johnson','Dennis Johnson','Mike Johnson','Logan Richert','Gabe 
    Revit/structural = CALCS, PDF, REC, REF, STR; AutoCAD = CAD (+EXPORTS on GDUs); civil = CIV, REC. */
 var DR={R:['CALCS','PDF','REC','REF','STR'],C:['CAD'],G:['CAD','EXPORTS'],V:['CIV','REC'],N:[]};
 var SERVICES=[
- {n:'Structural assessment / inspection',t:['Notes','Pictures','Final Report'],d:'N'},
- {n:'Truss / structural repair',t:['Notes','Pictures','Specs','Final Report'],d:'R'},
- {n:'Remodel / addition design',t:['Specs','Notes','Final Report'],d:'R'},
- {n:'New building / barn design',t:['Specs','Notes','Final Report'],d:'R'},
- {n:'Foundation / tank / pit design',t:['Specs','Notes','Final Report'],d:'R'},
- {n:'GDU / manure facility design & permit',t:['Design Report','Construction Quality Assurance Plan','Preconstruction Meeting','Permit','Operation & Maintenance'],d:'G'},
- {n:'Construction documentation (CQA)',t:['Construction Documentation Report','Preconstruction Meeting','Final Inspection','Pictures'],d:'N'},
- {n:'Ventilation study / CFD',t:['Notes','Final Report'],d:'N'},
- {n:'Civil / staking / drainage',t:['Notes'],d:'V'},
- {n:'Permitting / environmental',t:['Permit','Notes'],d:'N'},
- {n:'As-built / digital twin',t:['Notes','Pictures','Final Report'],d:'C'},
- {n:'Digester / RNG',t:['Specs','Notes','Final Report'],d:'C'},
- {n:'Other',t:['Notes','Final Report'],d:'C'}];
+ {"g":"Inspection & assessment","n":"Structural inspection","t":["Notes","Pictures","Final Report"],"d":"N","k":"assessment evaluation"},
+ {"g":"Inspection & assessment","n":"Truss inspection","t":["Notes","Pictures","Final Report"],"d":"N","k":"evaluation purlin roof"},
+ {"g":"Inspection & assessment","n":"Wall inspection","t":["Notes","Pictures","Final Report"],"d":"N","k":"sheerwall exterior wall"},
+ {"g":"Inspection & assessment","n":"Foundation assessment","t":["Notes","Pictures","Final Report"],"d":"N","k":"footing evaluation"},
+ {"g":"Inspection & assessment","n":"Storm damage assessment","t":["Notes","Pictures","Final Report"],"d":"N","k":"wind tornado collapse hail"},
+ {"g":"Inspection & assessment","n":"Fire inspection","t":["Notes","Pictures","Final Report"],"d":"N","k":""},
+ {"g":"Inspection & assessment","n":"Truck wash assessment","t":["Notes","Pictures","Final Report"],"d":"N","k":"car wash"},
+ {"g":"Inspection & assessment","n":"Site assessment","t":["Notes","Pictures","Final Report"],"d":"N","k":"phase 1 environmental"},
+ {"g":"Repair","n":"Truss repair","t":["Notes","Pictures","Specs","Final Report"],"d":"R","k":"bracing"},
+ {"g":"Repair","n":"Wall repair","t":["Notes","Pictures","Specs","Final Report"],"d":"R","k":""},
+ {"g":"Repair","n":"Tank repair","t":["Notes","Pictures","Specs","Final Report"],"d":"R","k":"cistern"},
+ {"g":"Repair","n":"Pit repair","t":["Notes","Pictures","Specs","Final Report"],"d":"R","k":"manure"},
+ {"g":"Repair","n":"Foundation repair","t":["Notes","Pictures","Specs","Final Report"],"d":"R","k":"footing"},
+ {"g":"Design","n":"New building design","t":["Specs","Notes","Final Report"],"d":"R","k":"barn shop hangar office"},
+ {"g":"Design","n":"Building addition","t":["Specs","Notes","Final Report"],"d":"R","k":"expansion"},
+ {"g":"Design","n":"Remodel design","t":["Specs","Notes","Final Report"],"d":"R","k":"renovation"},
+ {"g":"Design","n":"Foundation design","t":["Specs","Notes","Final Report"],"d":"R","k":"footing slab"},
+ {"g":"Design","n":"Tank design","t":["Specs","Notes","Final Report"],"d":"R","k":"cistern"},
+ {"g":"Design","n":"Beam design","t":["Specs","Notes","Final Report"],"d":"R","k":"header lvl"},
+ {"g":"Design","n":"Recycle system design","t":["Specs","Notes","Final Report"],"d":"R","k":"flush"},
+ {"g":"Design","n":"Digester design","t":["Specs","Notes","Final Report"],"d":"C","k":"rng biogas"},
+ {"g":"Design","n":"GDU design","t":["Design Report","Construction Quality Assurance Plan","Preconstruction Meeting","Permit","Operation & Maintenance"],"d":"G","k":"gilt development unit"},
+ {"g":"Design","n":"Manure pit design","t":["Design Report","Construction Quality Assurance Plan","Preconstruction Meeting","Permit","Operation & Maintenance"],"d":"G","k":"pit slats sow farm"},
+ {"g":"Studies","n":"Ventilation study","t":["Notes","Final Report"],"d":"N","k":"fan inlet static pressure"},
+ {"g":"Studies","n":"CFD simulation","t":["Notes","Final Report"],"d":"N","k":"airflow"},
+ {"g":"Studies","n":"Water balance","t":["Notes","Final Report"],"d":"N","k":"lagoon"},
+ {"g":"Permits & documentation","n":"Permit application","t":["Permit","Notes"],"d":"N","k":"cafo manure mpca datcp eaw"},
+ {"g":"Permits & documentation","n":"Permit recertification","t":["Permit","Notes"],"d":"N","k":"renewal"},
+ {"g":"Permits & documentation","n":"Construction quality assurance plan","t":["Construction Quality Assurance Plan","Notes"],"d":"N","k":"cqap"},
+ {"g":"Permits & documentation","n":"Construction documentation report","t":["Construction Documentation Report","Preconstruction Meeting","Final Inspection","Pictures"],"d":"N","k":"cqa concrete placement"},
+ {"g":"Permits & documentation","n":"As-built package","t":["Notes","Pictures","Final Report"],"d":"C","k":"as-built asbuilt"},
+ {"g":"Permits & documentation","n":"Digital twin","t":["Notes","Pictures","Final Report"],"d":"C","k":"scan point cloud 3d"},
+ {"g":"Permits & documentation","n":"Concrete testing","t":["Notes","Pictures","Final Report"],"d":"N","k":"cylinders rebound hammer"},
+ {"g":"Civil & survey","n":"Staking","t":["Notes"],"d":"V","k":"survey layout"},
+ {"g":"Civil & survey","n":"Civil site design","t":["Specs","Notes","Final Report"],"d":"V","k":"grading"},
+ {"g":"Civil & survey","n":"Drainage design","t":["Specs","Notes","Final Report"],"d":"V","k":"storm sewer tile"}];
 var AREAS=[['tech','Technical'],['draft','Drafting'],['data','Data Files'],['prop','Proposals']];
-function svcDef(n){return SERVICES.filter(function(s){return s.n===n})[0]||SERVICES[SERVICES.length-1]}
+var CUSTOM_DEF={t:['Notes','Final Report'],d:'C'};
+function svcDef(n){return SERVICES.filter(function(s){return s.n===n})[0]||CUSTOM_DEF}
 function uniq(a){var seen={},o=[];a.forEach(function(x){var k=x.toLowerCase();if(!seen[k]){seen[k]=1;o.push(x)}});return o}
 function autoSubs(P,which){
   var defs=(P.services.length?P.services:['Other']).map(svcDef);
@@ -865,11 +896,53 @@ function renderMiles(){
   }).join('');
 }
 function renderSvc(){
-  var known=SERVICES.map(function(s){return s.n});
-  var extra=S.services.filter(function(n){return known.indexOf(n)<0}).map(function(n){return{n:n}});
-  $('svcChips').innerHTML=SERVICES.concat(extra).map(function(s){var on=S.services.indexOf(s.n)>=0;
-    return '<span class="chip'+(on?' on':'')+'" role="checkbox" aria-checked="'+on+'" tabindex="0" data-svc="'+esc(s.n)+'">'+esc(s.n)+'</span>'}).join('');
+  $('svcChips').innerHTML=S.services.map(function(n,i){return '<span class="chip on">'+esc(n)+' <button type="button" class="x" style="min-height:22px;width:22px;font-size:1rem" data-svcrm="'+i+'" aria-label="Remove">×</button></span>'}).join('')||'<span class="hint">None picked yet.</span>';
 }
+var svcHi=0;
+function customServices(){return(DB.settings.customServices||[]).map(function(n){return{n:n,g:'Your services',k:''}})}
+function svcOptions(q){
+  q=q.trim().toLowerCase();
+  var all=SERVICES.concat(customServices()).filter(function(s){return S.services.indexOf(s.n)<0});
+  if(!q)return all;
+  var words=q.split(/\s+/);
+  return all.filter(function(s){var hay=(s.n+' '+s.k+' '+s.g).toLowerCase();return words.every(function(w){return hay.indexOf(w)>=0})});
+}
+function svcExact(q){q=q.trim().toLowerCase();return SERVICES.concat(customServices()).some(function(s){return s.n.toLowerCase()===q})||S.services.some(function(n){return n.toLowerCase()===q})}
+function renderSvcList(){
+  var q=$('svcInput').value,opts=svcOptions(q),h='',g='';
+  var canNew=!!q.trim()&&!svcExact(q);
+  var total=opts.length+(canNew?1:0);if(svcHi>=total)svcHi=Math.max(0,total-1);
+  opts.forEach(function(s,i){
+    if(s.g!==g){g=s.g;h+='<div class="g">'+esc(g)+'</div>'}
+    h+='<div class="it'+(i===svcHi?' on':'')+'" data-pick="'+i+'">'+esc(s.n)+'</div>';
+  });
+  if(!opts.length&&!canNew)h+='<div class="none">'+(q.trim()?'Already added.':'Everything is already added.')+'</div>';
+  if(canNew)h+='<div class="it new'+(svcHi===opts.length?' on':'')+'" data-pick="new">＋ Add "'+esc(q.trim())+'" as a new service</div>';
+  $('svcList').innerHTML=h;$('svcList').classList.remove('hidden');$('svcInput').setAttribute('aria-expanded','true');
+  var on=$('svcList').querySelector('.it.on');if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest'});
+}
+function hideSvcList(){$('svcList').classList.add('hidden');$('svcInput').setAttribute('aria-expanded','false')}
+function pickSvc(){
+  var q=$('svcInput').value,opts=svcOptions(q),canNew=!!q.trim()&&!svcExact(q);
+  if(svcHi<opts.length)addSvc(opts[svcHi].n);
+  else if(canNew)addSvc(q);
+}
+$('svcInput').addEventListener('focus',function(){svcHi=0;renderSvcList()});
+$('svcInput').addEventListener('input',function(){svcHi=0;renderSvcList()});
+$('svcInput').addEventListener('blur',function(){setTimeout(hideSvcList,250)});
+$('svcInput').addEventListener('keydown',function(e){
+  var q=this.value,opts=svcOptions(q),total=opts.length+((q.trim()&&!svcExact(q))?1:0);
+  if(e.key==='ArrowDown'){e.preventDefault();svcHi=Math.min(svcHi+1,Math.max(0,total-1));renderSvcList()}
+  else if(e.key==='ArrowUp'){e.preventDefault();svcHi=Math.max(0,svcHi-1);renderSvcList()}
+  else if(e.key==='Enter'){e.preventDefault();pickSvc()}
+  else if(e.key==='Escape'){hideSvcList()}
+});
+$('svcList').addEventListener('mousedown',function(e){e.preventDefault()});
+$('svcList').addEventListener('click',function(e){
+  var it=e.target.closest('[data-pick]');if(!it)return;
+  var p=it.getAttribute('data-pick'),q=$('svcInput').value;
+  if(p==='new')addSvc(q);else addSvc(svcOptions(q)[+p].n);
+});
 var AREA_NOTE={tech:'documents, reports, notes',draft:'CAD and Revit files',data:'survey data and point files',prop:'proposal and estimate, numbered per year'};
 function renderAreas(){
   var h='';
@@ -1054,6 +1127,7 @@ document.addEventListener('click',function(e){
   if(b.hasAttribute('data-rml')){S.labor.splice(+b.getAttribute('data-rml'),1);if(!S.labor.length)S.labor.push(blankLabor());renderLabor();touch();return}
   if(b.hasAttribute('data-rmo')){S.costs.splice(+b.getAttribute('data-rmo'),1);renderCosts();touch();return}
   if(b.hasAttribute('data-rmm')){S.milestones.splice(+b.getAttribute('data-rmm'),1);if(!S.milestones.length)S.milestones.push({name:'',pct:''});renderMiles();touch();return}
+  if(b.hasAttribute('data-svcrm')){removeSvc(+b.getAttribute('data-svcrm'));return}
   if(b.hasAttribute('data-rms')){var q=b.getAttribute('data-rms').split(':');S.subs[q[0]].splice(+q[1],1);S.subAuto[q[0]]=false;renderAreas();touch();return}
   if(b.hasAttribute('data-subaddbtn')){addSub(b.getAttribute('data-subaddbtn'));return}
   if(b.hasAttribute('data-subreset')){var rk=b.getAttribute('data-subreset');S.subAuto[rk]=true;setAutoSubs();renderAreas();touch();return}
@@ -1071,18 +1145,21 @@ $('mapBtn').onclick=function(){
 document.addEventListener('keydown',function(e){
   var t=e.target;if(!S)return;
   if(e.key==='Enter'&&t.hasAttribute('data-subadd')){e.preventDefault();addSub(t.getAttribute('data-subadd'))}
-  if((e.key==='Enter'||e.key===' ')&&t.hasAttribute('data-svc')){e.preventDefault();toggleSvc(t.getAttribute('data-svc'))}
 });
 function addSub(k){var inp=document.querySelector('[data-subadd="'+k+'"]'),v=cleanName(inp.value);if(!v)return;
   if(S.subs[k].map(function(x){return x.toLowerCase()}).indexOf(v.toLowerCase())<0)S.subs[k].push(v);
   S.subAuto[k]=false;renderAreas();touch();var n=document.querySelector('[data-subadd="'+k+'"]');if(n)n.focus()}
-function toggleSvc(n){
-  var i=S.services.indexOf(n);if(i<0)S.services.push(n);else S.services.splice(i,1);
-  setAutoSubs();renderSvc();renderAreas();touch();
+function addSvc(n){
+  n=String(n).trim().replace(/\s+/g,' ');if(!n)return;
+  if(S.services.some(function(x){return x.toLowerCase()===n.toLowerCase()}))return;
+  var canon=SERVICES.filter(function(s){return s.n.toLowerCase()===n.toLowerCase()})[0];
+  if(canon)n=canon.n;
+  else{DB.settings.customServices=DB.settings.customServices||[];if(DB.settings.customServices.indexOf(n)<0)DB.settings.customServices.push(n)}
+  S.services.push(n);setAutoSubs();renderSvc();renderAreas();touch();
+  $('svcInput').value='';svcHi=0;hideSvcList();
 }
-document.addEventListener('click',function(e){
-  var s=e.target.closest('[data-svc]');if(s&&S)toggleSvc(s.getAttribute('data-svc'));
-});
+function removeSvc(i){S.services.splice(i,1);setAutoSubs();renderSvc();renderAreas();touch()}
+function toggleSvc(n){var i=S.services.indexOf(n);if(i<0)addSvc(n);else removeSvc(i)}
 
 /* roles dialog */
 function renderRoles(){
