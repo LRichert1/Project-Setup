@@ -734,26 +734,35 @@ async function runScan(say){
 }
 $('cScan').onclick=async function(){await runScan(function(m){$('cScanHint').textContent=m});renderClients()};
 
-/* make client folder -> numbered project folder -> subfolders inside one area folder */
+/* make client folder -> numbered project folder -> subfolders inside one area folder.
+   Looks folders up by exact name instead of listing them wherever it can: listing a folder
+   that holds Dropbox online-only files makes Dropbox start downloading them. */
 async function ensureTree(base,o,subs){
   var res={path:[],clientCreated:false,projCreated:false,subsCreated:[],projExisted:false};
-  var cdir=null,cname=null;
-  for await(var e of base.entries()){
-    if(e[1].kind==='directory'&&(e[0]===o.clientNo||e[0].indexOf(o.clientNo+' ')===0)){cdir=e[1];cname=e[0];break}
+  var cdir=null,cname=null,tries=[];
+  if(o.clientSavedName)tries.push(o.clientNo+' '+cleanName(o.clientSavedName));
+  tries.push(o.clientNo+' '+cleanName(o.clientName));
+  for(var i=0;i<tries.length&&!cdir;i++){var d=await childDir(base,tries[i],false);if(d){cdir=d;cname=tries[i]}}
+  if(!cdir){ /* names can differ between areas, so fall back to matching the number */
+    for await(var e of base.entries()){
+      if(e[1].kind==='directory'&&(e[0]===o.clientNo||e[0].indexOf(o.clientNo+' ')===0)){cdir=e[1];cname=e[0];break}
+    }
   }
   if(!cdir){cname=o.clientNo+' '+cleanName(o.clientName);cdir=await base.getDirectoryHandle(cname,{create:true});res.clientCreated=true}
   res.path.push(cname);
-  var pdir=null,pname=null,want=parseInt(o.projNo,10);
-  for await(var f of cdir.entries()){
-    var m=/^(\d+)(?:\s|$)/.exec(f[0]);
-    if(f[1].kind==='directory'&&m&&parseInt(m[1],10)===want){pdir=f[1];pname=f[0];break}
+  var pdir=null,pname=o.projNo+' '+cleanName(o.projName),want=parseInt(o.projNo,10);
+  pdir=await childDir(cdir,pname,false);
+  if(!pdir&&(o.knownNums||[]).indexOf(want)>=0){ /* number is taken under a different name: find it */
+    for await(var f of cdir.entries()){
+      var m=/^(\d+)(?:\s|$)/.exec(f[0]);
+      if(f[1].kind==='directory'&&m&&parseInt(m[1],10)===want){pdir=f[1];pname=f[0];break}
+    }
   }
-  if(pdir){res.projExisted=true}else{pname=o.projNo+' '+cleanName(o.projName);pdir=await cdir.getDirectoryHandle(pname,{create:true});res.projCreated=true}
+  if(pdir){res.projExisted=true}else{pdir=await cdir.getDirectoryHandle(pname,{create:true});res.projCreated=true}
   res.path.push(pname);
-  var have={};for await(var g of pdir.entries()){have[g[0].toLowerCase()]=1}
-  for(var i=0;i<subs.length;i++){
-    var s=cleanName(subs[i]);if(!s)continue;
-    if(!have[s.toLowerCase()]){await pdir.getDirectoryHandle(s,{create:true});res.subsCreated.push(s)}
+  for(var j=0;j<subs.length;j++){
+    var s=cleanName(subs[j]);if(!s)continue;
+    if(!(await childDir(pdir,s,false))){await pdir.getDirectoryHandle(s,{create:true});res.subsCreated.push(s)}
   }
   return res;
 }
@@ -813,7 +822,8 @@ $('fCreate').onclick=async function(){
   var txt=pl.map(function(x){return x.path+(x.subs.length?'\n      + '+x.subs.join('\n      + '):'')}).join('\n\n');
   if(!confirm('Create these folders in your Dropbox?\n\n'+txt+'\n\nAnything that already exists is left alone.'))return;
   try{
-    var rep=await createAreas(R,{clientNo:S.clientNo,clientName:S.clientName,projNo:S.projNo,projName:S.projName,areas:S.areas,subs:S.subs,propYear:S.propYear,propName:S.propName});
+    var kc=findClientByNo(S.clientNo)||{};
+    var rep=await createAreas(R,{clientNo:S.clientNo,clientName:S.clientName,clientSavedName:kc.name,knownNums:kc.known||[],projNo:S.projNo,projName:S.projName,areas:S.areas,subs:S.subs,propYear:S.propYear,propName:S.propName});
     var made=rep.filter(function(r){return !r.skipped}),skipped=rep.filter(function(r){return r.skipped});
     if(made.length){S.folderDone={at:Date.now(),paths:made.map(function(r){return r.area+'\\'+r.path.join('\\')})};touch();persistNow()}
     refreshFolder();
