@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#36BAF2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="New Project">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>New Project Kickoff</title>
+<style>
+:root{
+  --brand:#36BAF2; --brand-700:#1f8bc2; --brand-50:#eaf7fd; --brand-100:#cdedfb;
+  --ink:#426170; --ink-700:#31474f; --ink-50:#eef2f3; --line:#d5dee2; --danger:#b3261e;
+  --font-display:"Proletarsk","Century Gothic","Futura","Segoe UI Semibold",sans-serif;
+  --font-heading:"Century Gothic","Futura","Segoe UI Semibold","Trebuchet MS",sans-serif;
+  --font-body:Arial,"Segoe UI",Helvetica,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-body);color:var(--ink);background:#f6f9fa;font-size:16px}
+header{background:#fff;border-bottom:3px solid var(--brand);padding:14px 16px;padding-top:max(14px,env(safe-area-inset-top))}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px}
+header .wrap{padding:0;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--font-display);color:var(--brand);margin:0;font-size:1.8rem;letter-spacing:.01em}
+.eyebrow{font-family:var(--font-heading);font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--ink)}
+main{padding:16px 0 90px}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 3px rgba(66,97,112,.12);padding:16px;margin-bottom:16px}
+h2{font-family:var(--font-heading);font-size:1.1rem;margin:0 0 12px;color:var(--ink);display:flex;align-items:center;gap:8px}
+h2 .num{background:var(--brand);color:#fff;border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:.85rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid .full{grid-column:1/-1}
+label{display:block;font-size:.8rem;font-weight:700;margin-bottom:4px;font-family:var(--font-heading)}
+input,textarea,select{width:100%;font:inherit;color:#1d2b31;padding:10px;border:1px solid var(--line);border-radius:6px;background:#fff;min-height:44px}
+textarea{min-height:90px;resize:vertical}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--brand);border-color:var(--brand)}
+.hint{font-size:.78rem;color:#6b8592;margin-top:3px}
+button{font:inherit;font-family:var(--font-heading);font-weight:700;cursor:pointer;border-radius:6px;min-height:44px;padding:0 16px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+button:hover{background:var(--ink-50)}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+button.primary:hover{background:var(--brand-700)}
+button.small{min-height:36px;padding:0 12px;font-size:.85rem}
+button.x{min-height:36px;width:36px;padding:0;color:var(--danger);font-size:1.2rem;line-height:1}
+.contact{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;background:#fbfdfd;position:relative}
+.contact .grid{grid-template-columns:1fr 1fr}
+.contact .rm{position:absolute;top:6px;right:6px}
+.contact .grid{padding-right:0}
+.contact h3{margin:0 0 8px;font-size:.8rem;font-family:var(--font-heading);color:var(--ink-700)}
+.seg{display:inline-flex;border:2px solid var(--brand);border-radius:999px;overflow:hidden;width:100%;max-width:420px}
+.seg button{flex:1;border:none;border-radius:0;background:#fff;color:var(--ink);min-height:48px}
+.seg button.on{background:var(--brand);color:#fff}
+.seg button+button{border-left:2px solid var(--brand)}
+.seg-label{margin-bottom:6px}
+.est{width:100%;border-collapse:collapse;margin-top:6px}
+.est th{font-family:var(--font-heading);font-size:.75rem;text-align:left;padding:4px 4px}
+.est td{padding:3px 4px;vertical-align:middle}
+.est td.n input{text-align:right}
+.est .c-desc{width:44%}.est .c-h{width:14%}.est .c-r{width:16%}.est .c-a{width:20%}.est .c-x{width:6%}
+.total{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid var(--brand);margin-top:10px;padding-top:10px;font-family:var(--font-heading);font-weight:700}
+.total .amt{font-size:1.5rem;color:var(--brand-700)}
+.sumline{display:flex;justify-content:space-between;font-size:.9rem;padding:2px 0}
+.lump{margin-top:6px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 16px;padding-bottom:max(10px,env(safe-area-inset-bottom));z-index:5}
+.bar .wrap{display:flex;gap:8px;flex-wrap:wrap;padding:0}
+.bar .sp{flex:1}
+.status{font-size:.8rem;color:#6b8592;align-self:center}
+#printView{display:none}
+.hidden{display:none!important}
+@media (max-width:600px){
+  .grid,.contact .grid{grid-template-columns:1fr}
+  .est .c-desc{width:auto}
+}
+@media print{
+  body{background:#fff}
+  header,main,.bar{display:none!important}
+  #printView{display:block;padding:0}
+  #printView h1{font-size:1.6rem}
+  #printView h2{font-size:1rem;border-bottom:1px solid var(--line);padding-bottom:3px;margin:16px 0 6px}
+  #printView table{width:100%;border-collapse:collapse;font-size:.9rem}
+  #printView th,#printView td{border-bottom:1px solid var(--line);padding:4px;text-align:left}
+  #printView td.r,#printView th.r{text-align:right}
+  #printView .kv{display:grid;grid-template-columns:150px 1fr;gap:3px 10px;font-size:.92rem}
+  #printView .kv b{font-family:var(--font-heading)}
+  #printView pre{white-space:pre-wrap;font:inherit;margin:0}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Johnson Engineering Group</div>
+      <h1>New Project Kickoff</h1>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="card">
+    <h2><span class="num">1</span> Client</h2>
+    <div class="grid">
+      <div><label for="clientName">Client name</label><input id="clientName" data-k="clientName" autocomplete="off"></div>
+      <div><label for="clientNo">Client JEG number</label><input id="clientNo" data-k="clientNo" autocomplete="off" placeholder="e.g. 0084"></div>
+      <div class="full"><label for="clientAddr">Client address</label><textarea id="clientAddr" data-k="clientAddr" rows="3" placeholder="Street&#10;City, State ZIP"></textarea></div>
+    </div>
+    <div style="margin-top:14px">
+      <label>Main contact(s)</label>
+      <div id="contacts"></div>
+      <button class="small" id="addContact" type="button">＋ Add contact</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">2</span> Project</h2>
+    <div class="grid">
+      <div><label for="projName">Project name</label><input id="projName" data-k="projName" autocomplete="off"></div>
+      <div><label for="projNo">Project JEG number</label><input id="projNo" data-k="projNo" autocomplete="off" placeholder="e.g. 103"></div>
+      <div class="full">
+        <label for="projAddr">Project address</label>
+        <textarea id="projAddr" data-k="projAddr" rows="3" placeholder="Street&#10;City, State ZIP"></textarea>
+        <button class="small" id="sameAddr" type="button" style="margin-top:6px">Same as client address</button>
+      </div>
+      <div class="full"><label for="projDesc">Project description</label><textarea id="projDesc" data-k="projDesc" rows="5" placeholder="Scope, what the client asked for, key dates…"></textarea></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">3</span> Budget</h2>
+    <div class="seg-label"><label>Fee type</label></div>
+    <div class="seg" id="feeSeg" role="group" aria-label="Fee type">
+      <button type="button" data-fee="fixed">Fixed fee</button>
+      <button type="button" data-fee="tm">Time &amp; material</button>
+    </div>
+    <div class="hint" id="feeHint"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">4</span> Estimate</h2>
+
+    <div id="fixedBox" class="hidden">
+      <div class="hint" style="margin:0 0 8px">Enter the fixed fee. Optionally break it down below for your own reference — the fee is the total you quote.</div>
+      <label for="fixedFee">Fixed fee ($)</label>
+      <input id="fixedFee" inputmode="decimal" placeholder="0.00" style="max-width:240px">
+    </div>
+
+    <div id="tmBox" class="hidden">
+      <div class="grid" style="margin-bottom:6px">
+        <div><label for="defRate">Default hourly rate ($/hr)</label><input id="defRate" inputmode="decimal" placeholder="0.00"></div>
+        <div><label for="nte">Not-to-exceed ($, optional)</label><input id="nte" inputmode="decimal" placeholder="0.00"></div>
+      </div>
+    </div>
+
+    <label style="margin-top:10px" id="linesLabel">Breakdown</label>
+    <table class="est">
+      <thead><tr><th class="c-desc">Task / phase</th><th class="c-h">Hours</th><th class="c-r">Rate</th><th class="c-a">Amount</th><th class="c-x"></th></tr></thead>
+      <tbody id="lines"></tbody>
+    </table>
+    <button class="small" id="addLine" type="button" style="margin-top:6px">＋ Add line</button>
+
+    <div style="margin-top:14px">
+      <div class="sumline"><span>Breakdown total</span><span id="sumLines">$0.00</span></div>
+      <div class="sumline" id="sumHoursRow"><span>Total hours</span><span id="sumHours">0</span></div>
+    </div>
+    <div class="total"><span id="totalLabel">Estimate</span><span class="amt" id="totalAmt">$0.00</span></div>
+    <div class="hint" id="totalHint"></div>
+
+    <div style="margin-top:14px">
+      <label for="estNotes">Estimate notes / assumptions</label>
+      <textarea id="estNotes" rows="3" placeholder="Exclusions, reimbursables, assumptions…"></textarea>
+    </div>
+  </section>
+
+</main>
+
+<div class="bar"><div class="wrap">
+  <button class="primary" id="btnPrint" type="button">Print / PDF</button>
+  <button id="btnSave" type="button">Save file</button>
+  <button id="btnOpen" type="button">Open…</button>
+  <span class="sp"></span>
+  <button id="btnNew" type="button">New</button>
+  <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
+</div></div>
+
+<div id="printView"></div>
+
+<script>
+(function(){
+'use strict';
+var KEY='projectKickoff.autosave.v1';
+var FIELDS=['clientName','clientNo','clientAddr','projName','projNo','projAddr','projDesc'];
+var S;
+
+function blank(){return{
+  clientName:'',clientNo:'',clientAddr:'',projName:'',projNo:'',projAddr:'',projDesc:'',
+  contacts:[{name:'',title:'',email:'',phone:''}],
+  fee:'fixed', fixedFee:'', defRate:'', nte:'', estNotes:'',
+  lines:[{desc:'',hours:'',rate:'',amount:''}]
+};}
+var $=function(id){return document.getElementById(id)};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function num(v){var n=parseFloat(String(v).replace(/[$,\s]/g,''));return isNaN(n)?0:n}
+function money(n){return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+/* ---------- persistence ---------- */
+var saveT;
+function persist(){
+  clearTimeout(saveT);
+  saveT=setTimeout(function(){
+    try{localStorage.setItem(KEY,JSON.stringify(S));$('status').textContent='Draft saved on this device'}catch(e){}
+  },250);
+}
+function load(){
+  try{var r=localStorage.getItem(KEY);if(r){var d=JSON.parse(r);return Object.assign(blank(),d)}}catch(e){}
+  return blank();
+}
+
+/* ---------- render ---------- */
+function renderStatic(){
+  FIELDS.forEach(function(k){$(k).value=S[k]});
+  ['fixedFee','defRate','nte','estNotes'].forEach(function(k){$(k).value=S[k]});
+  renderContacts();renderLines();renderFee();
+}
+function renderContacts(){
+  var h='';
+  S.contacts.forEach(function(c,i){
+    h+='<div class="contact" data-i="'+i+'"><h3>Contact '+(i+1)+'</h3>'+
+    (S.contacts.length>1?'<button class="x rm" type="button" data-rmc="'+i+'" aria-label="Remove contact">×</button>':'')+
+    '<div class="grid">'+
+    '<div><label>Name</label><input data-c="name" value="'+esc(c.name)+'"></div>'+
+    '<div><label>Title / role</label><input data-c="title" value="'+esc(c.title)+'"></div>'+
+    '<div><label>Email</label><input data-c="email" type="email" inputmode="email" value="'+esc(c.email)+'"></div>'+
+    '<div><label>Phone</label><input data-c="phone" type="tel" inputmode="tel" value="'+esc(c.phone)+'"></div>'+
+    '</div></div>';
+  });
+  $('contacts').innerHTML=h;
+}
+function renderLines(){
+  var h='';
+  S.lines.forEach(function(l,i){
+    h+='<tr data-i="'+i+'">'+
+    '<td class="c-desc"><input data-l="desc" value="'+esc(l.desc)+'" placeholder="e.g. Site visit"></td>'+
+    '<td class="n"><input data-l="hours" inputmode="decimal" value="'+esc(l.hours)+'"></td>'+
+    '<td class="n"><input data-l="rate" inputmode="decimal" value="'+esc(l.rate)+'" placeholder="'+(S.defRate?esc(S.defRate):'')+'"></td>'+
+    '<td class="n"><input data-l="amount" inputmode="decimal" value="'+esc(l.amount)+'"></td>'+
+    '<td><button class="x" type="button" data-rml="'+i+'" aria-label="Remove line">×</button></td></tr>';
+  });
+  $('lines').innerHTML=h;
+}
+function renderFee(){
+  var fixed=S.fee==='fixed';
+  Array.prototype.forEach.call($('feeSeg').querySelectorAll('button'),function(b){
+    var on=b.getAttribute('data-fee')===S.fee;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);
+  });
+  $('fixedBox').classList.toggle('hidden',!fixed);
+  $('tmBox').classList.toggle('hidden',fixed);
+  $('sumHoursRow').classList.toggle('hidden',fixed&&false);
+  $('feeHint').textContent=fixed?'One agreed price for the defined scope.':'Billed on hours worked at hourly rates; estimate is a forecast.';
+  $('linesLabel').textContent=fixed?'Breakdown (optional)':'Estimate by task / phase';
+  $('totalLabel').textContent=fixed?'Fixed fee':'Estimated total';
+  recompute();
+}
+function lineAmt(l){return num(l.amount)}
+function recompute(){
+  var sum=0,hrs=0;
+  S.lines.forEach(function(l){sum+=lineAmt(l);hrs+=num(l.hours)});
+  $('sumLines').textContent=money(sum);
+  $('sumHours').textContent=hrs.toLocaleString('en-US',{maximumFractionDigits:2});
+  var total,hint='';
+  if(S.fee==='fixed'){
+    total=S.fixedFee!==''?num(S.fixedFee):sum;
+    if(S.fixedFee!==''&&sum>0&&Math.abs(sum-total)>0.005)hint='Breakdown ('+money(sum)+') differs from the fixed fee by '+money(Math.abs(sum-total))+'.';
+  }else{
+    total=sum;
+    if(num(S.nte)>0)hint=total>num(S.nte)?'Over the not-to-exceed by '+money(total-num(S.nte))+'.':'Not-to-exceed: '+money(num(S.nte))+' ('+money(num(S.nte)-total)+' headroom).';
+  }
+  $('totalAmt').textContent=money(total);
+  $('totalHint').textContent=hint;
+  return total;
+}
+
+/* ---------- events ---------- */
+document.addEventListener('input',function(e){
+  var t=e.target,k=t.getAttribute('data-k');
+  if(k){S[k]=t.value;persist();return}
+  if(t.id==='fixedFee'||t.id==='defRate'||t.id==='nte'||t.id==='estNotes'){
+    S[t.id]=t.value;
+    if(t.id==='defRate'){
+      Array.prototype.forEach.call($('lines').querySelectorAll('[data-l=rate]'),function(i){i.placeholder=S.defRate});
+      S.lines.forEach(function(l,i){autoAmt(i,false)});refreshAmounts();
+    }
+    recompute();persist();return;
+  }
+  var c=t.getAttribute('data-c');
+  if(c){var ci=+t.closest('.contact').getAttribute('data-i');S.contacts[ci][c]=t.value;persist();return}
+  var l=t.getAttribute('data-l');
+  if(l){
+    var tr=t.closest('tr'),i=+tr.getAttribute('data-i');S.lines[i][l]=t.value;
+    if(l==='hours'||l==='rate'){autoAmt(i,true);tr.querySelector('[data-l=amount]').value=S.lines[i].amount}
+    recompute();persist();
+  }
+});
+/* amount = hours × (line rate or default rate) when hours are given */
+function autoAmt(i,force){
+  var L=S.lines[i],r=L.rate!==''?num(L.rate):num(S.defRate),h=num(L.hours);
+  if(L.hours!==''&&r>0){L.amount=String(Math.round(h*r*100)/100)}
+  else if(force&&L.hours===''){/* leave typed amount alone */}
+}
+function refreshAmounts(){
+  Array.prototype.forEach.call($('lines').querySelectorAll('tr'),function(tr){
+    tr.querySelector('[data-l=amount]').value=S.lines[+tr.getAttribute('data-i')].amount;
+  });
+}
+document.addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  if(b.hasAttribute('data-fee')){S.fee=b.getAttribute('data-fee');renderFee();persist();return}
+  if(b.hasAttribute('data-rmc')){S.contacts.splice(+b.getAttribute('data-rmc'),1);renderContacts();persist();return}
+  if(b.hasAttribute('data-rml')){S.lines.splice(+b.getAttribute('data-rml'),1);if(!S.lines.length)S.lines.push({desc:'',hours:'',rate:'',amount:''});renderLines();recompute();persist();return}
+});
+$('addContact').onclick=function(){S.contacts.push({name:'',title:'',email:'',phone:''});renderContacts();persist();
+  var inp=$('contacts').querySelectorAll('.contact');inp[inp.length-1].querySelector('input').focus()};
+$('addLine').onclick=function(){S.lines.push({desc:'',hours:'',rate:'',amount:''});renderLines();persist();
+  var r=$('lines').querySelectorAll('tr');r[r.length-1].querySelector('input').focus()};
+$('sameAddr').onclick=function(){S.projAddr=S.clientAddr;$('projAddr').value=S.projAddr;persist()};
+
+/* ---------- file save / open ---------- */
+function fname(){
+  var n=(S.projNo?S.projNo+' ':'')+(S.projName||'New Project');
+  return 'Project Kickoff - '+n.replace(/[\\\/:*?"<>|]/g,'').trim();
+}
+function download(name,text,type){
+  var blob=new Blob([text],{type:type});
+  var file;try{file=new File([blob],name,{type:type})}catch(e){}
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file]}).catch(function(){});return;
+  }
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500);
+}
+$('btnSave').onclick=function(){download(fname()+'.json',JSON.stringify(S,null,2),'application/json')};
+$('btnOpen').onclick=function(){$('fileIn').click()};
+$('fileIn').onchange=function(){
+  var f=this.files[0];if(!f)return;var r=new FileReader();
+  r.onload=function(){
+    try{S=Object.assign(blank(),JSON.parse(r.result));if(!S.contacts||!S.contacts.length)S.contacts=blank().contacts;if(!S.lines||!S.lines.length)S.lines=blank().lines;renderStatic();persist()}
+    catch(e){alert('That file could not be read.')}
+  };
+  r.readAsText(f);this.value='';
+};
+$('btnNew').onclick=function(){
+  if(confirm('Clear the form and start a new project?')){S=blank();renderStatic();persist()}
+};
+
+/* ---------- print ---------- */
+function kv(k,v){return v?'<b>'+esc(k)+'</b><div><pre>'+esc(v)+'</pre></div>':''}
+function buildPrint(){
+  var fixed=S.fee==='fixed',total=recompute();
+  var h='<div class="eyebrow">Johnson Engineering Group</div><h1>New Project Kickoff</h1>';
+  h+='<h2>Client</h2><div class="kv">'+kv('Client',S.clientName)+kv('Client JEG #',S.clientNo)+kv('Address',S.clientAddr)+'</div>';
+  var cs=S.contacts.filter(function(c){return c.name||c.title||c.email||c.phone});
+  if(cs.length){
+    h+='<table style="margin-top:8px"><thead><tr><th>Contact</th><th>Title</th><th>Email</th><th>Phone</th></tr></thead><tbody>';
+    cs.forEach(function(c){h+='<tr><td>'+esc(c.name)+'</td><td>'+esc(c.title)+'</td><td>'+esc(c.email)+'</td><td>'+esc(c.phone)+'</td></tr>'});
+    h+='</tbody></table>';
+  }
+  h+='<h2>Project</h2><div class="kv">'+kv('Project',S.projName)+kv('Project JEG #',S.projNo)+kv('Address',S.projAddr)+kv('Description',S.projDesc)+'</div>';
+  h+='<h2>Budget</h2><div class="kv"><b>Fee type</b><div>'+(fixed?'Fixed fee':'Time &amp; material')+'</div>'+
+     (fixed?'':(num(S.defRate)?'<b>Default rate</b><div>'+money(num(S.defRate))+'/hr</div>':'')+(num(S.nte)?'<b>Not-to-exceed</b><div>'+money(num(S.nte))+'</div>':''))+
+     '<b>'+(fixed?'Fixed fee':'Estimated total')+'</b><div><b>'+money(total)+'</b></div></div>';
+  var ls=S.lines.filter(function(l){return l.desc||l.hours||l.amount});
+  if(ls.length){
+    h+='<table style="margin-top:8px"><thead><tr><th>Task / phase</th><th class="r">Hours</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead><tbody>';
+    ls.forEach(function(l){
+      var r=l.rate!==''?num(l.rate):num(S.defRate);
+      h+='<tr><td>'+esc(l.desc)+'</td><td class="r">'+(l.hours!==''?esc(l.hours):'')+'</td><td class="r">'+(l.hours!==''&&r?money(r):'')+'</td><td class="r">'+(l.amount!==''?money(num(l.amount)):'')+'</td></tr>';
+    });
+    h+='</tbody></table>';
+  }
+  if(S.estNotes)h+='<h2>Estimate notes</h2><pre>'+esc(S.estNotes)+'</pre>';
+  $('printView').innerHTML=h;
+}
+$('btnPrint').onclick=function(){buildPrint();window.print()};
+window.addEventListener('beforeprint',buildPrint);
+
+S=load();renderStatic();
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){navigator.serviceWorker.register("sw.js").catch(function(){})}
+window.__kickoff={get S(){return S},buildPrint:buildPrint,recompute:recompute};
+})();
+</script>
+</body>
+</html>
