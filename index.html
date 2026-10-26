@@ -167,6 +167,7 @@ button:disabled{opacity:.5;cursor:default}
 
 <!-- ============ DASHBOARD ============ -->
 <div id="vDash" class="view">
+  <div class="banner hidden" id="movedBar"></div>
   <div class="teambar hidden" id="teamBar"></div>
   <input id="dashQ" type="search" placeholder="Search by job number, project or client…">
   <div class="tabs" id="dashTabs">
@@ -395,6 +396,7 @@ button:disabled{opacity:.5;cursor:default}
 <div id="toast"></div>
 <div id="printView"></div>
 
+<script>window.KICKOFF_MOVED="https://johnsonenggrp.github.io/project-setup/";</script>
 <script>/*%%TEAMCFG-BEGIN%%*/
 var TEAM_CONFIG={"mode":"off"};
 /*%%TEAMCFG-END%%*/</script>
@@ -1924,6 +1926,11 @@ $('dRefresh').onclick=function(){refreshTeam(true)};
   DB=loadDB();
   try{if(!localStorage.getItem(storeKey()))saveDB()}catch(e){}
   renderAcct();
+  /* set only on the old address after the app moves: tells people where it went and how to bring their projects */
+  if(window.KICKOFF_MOVED){
+    var mv=$('movedBar');mv.classList.remove('hidden');
+    mv.innerHTML='<b>This app has moved.</b> The new address is <a href="'+esc(window.KICKOFF_MOVED)+'">'+esc(window.KICKOFF_MOVED)+'</a>. To bring your projects: tap <b>Back up</b> below, then open the new address and tap <b>Restore…</b> and choose that file.';
+  }
   show('dash');
   if(TEAMON&&!ACCT){var skip=false;try{skip=!!sessionStorage.getItem('kickoff.local')}catch(e){}if(!skip)showSignIn()}
   if(CL)refreshTeam(true);
