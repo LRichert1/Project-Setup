@@ -84,6 +84,12 @@ button:disabled{opacity:.5;cursor:default}
 .dd .it.on,.dd .it:hover{background:var(--brand-50)}
 .dd .it.new{border-top:1px solid var(--line);color:var(--brand-700);font-weight:700}
 .dd .none{padding:10px 12px;color:#6b8592;font-size:.9rem}
+.teambar{background:var(--brand-50);border:1px solid var(--brand-100);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:.85rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.teambar .err,.hint.err{color:var(--danger)}
+.badge.team{background:#e8eef0;color:var(--ink-700)}
+.badge.warn{background:#ffe2c2;color:#8a4b00}
+.who{font-size:.78rem;color:#6b8592;margin-top:2px}
+.pc-foot .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .path{font-family:Consolas,Menlo,monospace;font-size:.85rem;background:var(--ink-50);border-radius:6px;padding:8px 10px;word-break:break-all;margin:4px 0}
 .banner{background:#fff8e1;border:1px solid #f0d78c;color:#7a5a00;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.88rem}
 .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 16px;padding-bottom:max(10px,env(safe-area-inset-bottom));z-index:5}
@@ -153,6 +159,7 @@ button:disabled{opacity:.5;cursor:default}
       <h1 id="ttl">Project Kickoff</h1>
     </div>
     <div class="status" id="status"></div>
+    <div class="status" id="acct"></div>
   </div>
 </header>
 
@@ -160,6 +167,7 @@ button:disabled{opacity:.5;cursor:default}
 
 <!-- ============ DASHBOARD ============ -->
 <div id="vDash" class="view">
+  <div class="teambar hidden" id="teamBar"></div>
   <input id="dashQ" type="search" placeholder="Search by job number, project or client…">
   <div class="tabs" id="dashTabs">
     <button type="button" data-tab="all" class="on">All</button>
@@ -188,6 +196,7 @@ button:disabled{opacity:.5;cursor:default}
 
 <!-- ============ FORM ============ -->
 <div id="vForm" class="view hidden">
+  <div class="banner hidden" id="tBanner" style="background:#eaf7fd;border-color:#9fd8f2;color:#31474f"></div>
   <div class="banner hidden" id="missing"></div>
 
   <section class="card">
@@ -330,6 +339,7 @@ button:disabled{opacity:.5;cursor:default}
   <button class="primary" id="dNew" type="button">＋ New project</button>
   <button id="dClients" type="button">Clients</button>
   <span class="sp"></span>
+  <button id="dRefresh" type="button" class="hidden">⟳ Refresh</button>
   <button id="dBackup" type="button">Back up</button>
   <button id="dRestore" type="button">Restore…</button>
   <input type="file" id="dFile" accept=".json,application/json" class="hidden">
@@ -341,6 +351,7 @@ button:disabled{opacity:.5;cursor:default}
   <button id="bBack" type="button">‹ Dashboard</button>
   <button class="primary" id="bComplete" type="button">Mark complete</button>
   <span class="sp"></span>
+  <button id="bUpload" type="button" class="primary hidden">Upload to team</button>
   <button id="bPrint" type="button">Print / PDF</button>
   <button id="bShare" type="button">Share</button>
   <button id="bSave" type="button">Save file</button>
@@ -355,9 +366,236 @@ button:disabled{opacity:.5;cursor:default}
   <div style="text-align:right;margin-top:12px"><button class="primary" id="roleDone" type="button">Done</button></div>
 </div></div>
 
+<div class="ov hidden" id="ovSign"><div class="box" style="text-align:center">
+  <h2 style="justify-content:center">Sign in to share projects</h2>
+  <p>Sign in with your Johnson Engineering Dropbox account to see the team's projects, share yours, and create folders from any device.</p>
+  <p class="hint err" id="signMsg"></p>
+  <p><button class="primary" id="signInBtn" type="button">Sign in with Dropbox</button></p>
+  <p><a href="#" id="signLocal">Use on this device only for now</a></p>
+</div></div>
+<div class="ov hidden" id="ovConflict"><div class="box">
+  <h2>Someone else changed this</h2>
+  <p id="cfText"></p>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button id="cfMine" type="button"><b>Keep mine</b> — replace the team's version with mine</button>
+    <button id="cfTheirs" type="button"><b>Take theirs</b> — discard my changes on this device</button>
+    <button id="cfBoth" type="button"><b>Keep both</b> — save mine as a separate copy and take theirs</button>
+    <button id="cfCancel" type="button">Decide later</button>
+  </div>
+</div></div>
+<div class="ov hidden" id="ovDel"><div class="box">
+  <h2>Delete project</h2>
+  <p id="delText"></p>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button id="delLocal" type="button">Remove from this device only</button>
+    <button id="delAll" type="button" style="color:var(--danger)">Delete for everyone</button>
+    <button id="delCancel" type="button">Cancel</button>
+  </div>
+</div></div>
 <div id="toast"></div>
 <div id="printView"></div>
 
+<script>/*%%TEAMCFG-BEGIN%%*/
+var TEAM_CONFIG={"mode":"off"};
+/*%%TEAMCFG-END%%*/</script>
+<script>/* ==TEAM-BEGIN== */
+/* Team layer for the Project Kickoff app: Dropbox sign-in (OAuth 2 code flow + PKCE, no secret in the page) and a shared Dropbox folder.
+   Adapted from the Ventilation Sizing app's team.js (see app/_src/team.js) with the same hard-won details:
+   - the team folder is reached with the header  Dropbox-API-Path-Root: {".tag":"root","root":"<root namespace id>"}  and an ordinary "/<folder>/..." path;
+   - a file's `rev` plays the eTag, so two people never silently overwrite each other (a rev mismatch comes back as TeamError 'conflict');
+   - Dropbox reports folders you can't see as "not found", so a missing base folder is explained as "not shared with you".
+   Data layout under <folder>:   projects/<projectId>.json   one file per project
+                                 clients.json                the shared client list (numbers, addresses, contacts, reserved project numbers)
+   This file is the source of truth: _tools/build-kickoff.js pastes it into Project_Kickoff_Form.html between the TEAM markers, and
+   tests/kickoff/team.test.js runs it from Node against tests/kickoff/mock-dropbox.js. No DOM access in here. */
+var TEAM = (function () {
+  'use strict';
+  function TeamError(code, msg, status) { var e = new Error(msg || code); e.name = 'TeamError'; e.code = code; e.status = status || 0; return e; }
+  var MAX_UPLOAD = 4 * 1024 * 1024;
+
+  function createClient(o) {
+    var f = o.fetch || function () { return fetch.apply(null, arguments); };
+    var api = (o.apiBase || 'https://api.dropboxapi.com').replace(/\/+$/, ''), cdn = (o.contentBase || 'https://content.dropboxapi.com').replace(/\/+$/, '');
+    var folderName = String(o.folder || 'Project Kickoffs').replace(/^\/+|\/+$/g, ''), base = '/' + folderName;
+    var group = '/' + String(o.groupFolder || 'Johnson Engineering Group').replace(/^\/+|\/+$/g, '');
+    var P = function (sub) { return base + '/' + sub; };
+    var pathRoot = o.rootNamespaceId ? JSON.stringify({ '.tag': 'root', root: String(o.rootNamespaceId) }) : '';
+    var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+    var hdrJson = function (x) { return JSON.stringify(x).replace(/[\u007f-￿]/g, function (c) { return '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4); }); };
+    var names = {}, verifiedAt = 0, none = { name: '', email: '' };
+
+    function dbxError(status, sum, what) {
+      var t = function (code, msg) { var e = TeamError(code, msg, status); e.summary = sum; return e; };
+      if (status === 401) return t('auth', 'Sign in again to reach the team folder.');
+      if (status === 422 && /invalid_root/.test(sum)) return t('server', 'Dropbox did not accept the team space for this account (invalid root) - tell the person who set up the app.');
+      if (status === 403 || /no_write_permission|no_permission|team_access|restricted_content|access_denied/.test(sum)) return t('denied', 'Dropbox says you do not have access to that folder - ask the admin to share it with you.');
+      if (status === 409 && /not_found/.test(sum)) return t('missing', (what || 'That') + ' is not in Dropbox.');
+      if (status === 409 && /conflict/.test(sum)) return t('conflict', 'Someone else changed this since you last synced.');
+      return t('server', 'Dropbox returned an error (' + status + (sum ? ': ' + String(sum).slice(0, 80) : '') + ').');
+    }
+    async function call(kind, endpoint, arg, body, what) {
+      var attempt = 0;
+      for (;;) {
+        var tok; try { tok = await o.getToken(); } catch (e) { throw TeamError('auth', 'Sign in again to reach the team folder.'); }
+        var headers = { Authorization: 'Bearer ' + tok }, opt = { method: 'POST', headers: headers }, url;
+        if (pathRoot && /^files\//.test(endpoint)) headers['Dropbox-API-Path-Root'] = pathRoot;
+        if (kind === 'rpc') { url = api + '/2/' + endpoint; if (arg !== undefined) { headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(arg); } }
+        else { url = cdn + '/2/' + endpoint; headers['Dropbox-API-Arg'] = hdrJson(arg); if (kind === 'up') { headers['Content-Type'] = 'application/octet-stream'; opt.body = body; } }
+        var res; try { res = await f(url, opt); } catch (e) { throw TeamError('offline', 'Cannot reach Dropbox - check the connection.'); }
+        if (res.ok) return res;
+        var text = await res.text().catch(function () { return ''; }), j = null; try { j = JSON.parse(text); } catch (e) { /* plain text */ }
+        var sum = (j && j.error_summary) || text || '';
+        if ((res.status === 429 || res.status === 503 || /too_many_write_operations|too_many_requests/.test(sum)) && attempt < 2) {
+          attempt++; await sleep(Math.min(8, +res.headers.get('Retry-After') || (j && j.error && j.error.retry_after) || attempt * 2) * (o.retryScale == null ? 1000 : o.retryScale)); continue;
+        }
+        throw dbxError(res.status, sum, what);
+      }
+    }
+    async function ensureFolder() {
+      if (Date.now() - verifiedAt < (o.verifyMs == null ? 600000 : o.verifyMs)) return;
+      try { await call('rpc', 'files/get_metadata', { path: base }); verifiedAt = Date.now(); }
+      catch (e) { if (e.code === 'missing') throw TeamError('nofolder', 'The team folder "' + folderName + '" is not in your Dropbox - ask the admin to share it with you.', 409); throw e; }
+    }
+    async function resolveNames(ids) {
+      var need = Array.from(new Set(ids.filter(function (x) { return x && !names[x]; })));
+      if (!need.length) return;
+      try { var r = await call('rpc', 'users/get_account_batch', { account_ids: need }); (await r.json()).forEach(function (a) { if (a && a.account_id) names[a.account_id] = { name: (a.name && a.name.display_name) || '', email: a.email || '' }; }); } catch (e) { /* best effort */ }
+    }
+    var modId = function (m) { return m && m.sharing_info && m.sharing_info.modified_by; };
+    var byOf = function (m) { return (m.sharing_info && names[m.sharing_info.modified_by]) || none; };
+    var meta = function (m) { return { id: String(m.name || '').replace(/\.json$/i, ''), eTag: m.rev, size: m.size || 0, modifiedAt: m.server_modified ? Date.parse(m.server_modified) : 0, modifiedBy: byOf(m) }; };
+    async function listAll(path) {
+      var r = await call('rpc', 'files/list_folder', { path: path, recursive: false, limit: o.pageSize || 500 }), j = await r.json(), entries = j.entries || [];
+      while (j.has_more) { r = await call('rpc', 'files/list_folder/continue', { cursor: j.cursor }); j = await r.json(); entries = entries.concat(j.entries || []); }
+      return entries;
+    }
+    async function download(path, what) {
+      var r = await call('down', 'files/download', { path: path }, undefined, what), text = await r.text(), m = null, h = r.headers.get('Dropbox-API-Result');
+      if (h) { try { m = JSON.parse(h); } catch (e) { /* fall back below */ } }
+      if (!m || !m.rev) m = await (await call('rpc', 'files/get_metadata', { path: path })).json();
+      await resolveNames([modId(m)]);
+      return { text: text, meta: m };
+    }
+
+    return {
+      folderName: folderName,
+      async me() { var r = await call('rpc', 'users/get_current_account'), j = await r.json(); return { id: j.account_id, name: (j.name && j.name.display_name) || '', email: j.email || '', rootNamespaceId: j.root_info && j.root_info.root_namespace_id }; },
+      /* ---- projects ---- */
+      async listProjects() {
+        await ensureFolder();
+        var entries; try { entries = await listAll(P('projects')); } catch (e) { if (e.code === 'missing') return []; throw e; }
+        var files = entries.filter(function (x) { return x['.tag'] === 'file' && /\.json$/i.test(x.name || ''); });
+        await resolveNames(files.map(modId)); return files.map(meta);
+      },
+      async getProject(id) {
+        var d; try { d = await download(P('projects/' + id + '.json'), 'project ' + id); } catch (e) { if (e.code === 'missing') throw TeamError('missing', 'That project is not in the team folder any more.', 404); throw e; }
+        var p; try { p = JSON.parse(d.text); } catch (e) { throw TeamError('server', 'That project file in the team folder is not readable.'); }
+        return { project: p, eTag: d.meta.rev, modifiedAt: d.meta.server_modified ? Date.parse(d.meta.server_modified) : 0, modifiedBy: byOf(d.meta) };
+      },
+      async putProject(project, rev) {
+        var body = JSON.stringify(project); if (body.length > MAX_UPLOAD) throw TeamError('toolarge', 'This project is too large to upload.');
+        await ensureFolder();
+        var r = await call('up', 'files/upload', { path: P('projects/' + project.id + '.json'), mode: rev ? { '.tag': 'update', update: rev } : { '.tag': 'add' }, autorename: false, mute: true }, body);
+        var m = await r.json(); await resolveNames([modId(m)]); return meta(m);
+      },
+      async removeProject(id, rev) {
+        var path = P('projects/' + id + '.json');
+        try { await call('rpc', 'files/delete_v2', rev ? { path: path, parent_rev: rev } : { path: path }); }
+        catch (e) {
+          if (e.status === 409 && rev) { var m = null; try { m = await (await call('rpc', 'files/get_metadata', { path: path })).json(); } catch (e2) { if (e2.code === 'missing') return; throw e2; } if (m.rev !== rev) throw TeamError('conflict', 'Someone else changed this since you last synced.', 409); }
+          else if (e.code === 'missing') return;
+          throw e;
+        }
+      },
+      /* ---- shared client list ---- */
+      async getClients() {
+        await ensureFolder();
+        try { var d = await download(P('clients.json'), 'the client list'); var j = null; try { j = JSON.parse(d.text); } catch (e) { j = null; } return { data: j, eTag: d.meta.rev }; }
+        catch (e) { if (e.code === 'missing') return { data: null, eTag: null }; throw e; }
+      },
+      async putClients(data, rev) {
+        await ensureFolder();
+        var r = await call('up', 'files/upload', { path: P('clients.json'), mode: rev ? { '.tag': 'update', update: rev } : { '.tag': 'add' }, autorename: false, mute: true }, JSON.stringify(data));
+        return (await r.json()).rev;
+      },
+      /* ---- the company folder tree (Technical / Drafting / Data Files / Proposals) ---- */
+      group: group,
+      // names of the sub-folders of an absolute Dropbox path such as "/Johnson Engineering Group/Technical"; null if the folder does not exist
+      async listDirs(path) {
+        var entries; try { entries = await listAll(path); } catch (e) { if (e.code === 'missing') return null; throw e; }
+        return entries.filter(function (x) { return x['.tag'] === 'folder'; }).map(function (x) { return x.name; });
+      },
+      // 'created' | 'exists'. The parent has to exist (Dropbox would create parents, but then a typo would silently build a new tree)
+      async createFolder(path) {
+        try { await call('rpc', 'files/create_folder_v2', { path: path, autorename: false }); return 'created'; }
+        catch (e) { if (e.code === 'conflict') return 'exists'; throw e; }
+      }
+    };
+  }
+
+  function createAuth(o) {
+    var f = o.fetch || function () { return fetch.apply(null, arguments); }, store = o.storage, sess = o.session, loc = o.location, hist = o.history;
+    var cr = o.crypto || (typeof crypto !== 'undefined' ? crypto : null), now = o.now || function () { return Date.now(); };
+    var authBase = (o.authBase || 'https://www.dropbox.com').replace(/\/+$/, ''), apiBase = (o.apiBase || 'https://api.dropboxapi.com').replace(/\/+$/, '');
+    var SCOPE = o.scopes || ['account_info.read', 'files.metadata.read', 'files.content.read', 'files.content.write', 'sharing.read'];
+    var TOK = 'kickoff_dbx_tokens', ACC = 'kickoff_dbx_acct', PK = 'kickoff_dbx_pkce';
+    var get = function (s, k) { try { return JSON.parse(s.getItem(k) || 'null'); } catch (e) { return null; } };
+    var put = function (s, k, v) { try { s.setItem(k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } };
+    var b64url = function (bytes) { return btoa(String.fromCharCode.apply(null, Array.from(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+    var rand = function (n) { var a = new Uint8Array(n); cr.getRandomValues(a); return b64url(a); };
+    var tok = get(store, TOK), acct = get(store, ACC), lastError = null, refreshing = null;
+    var clean = function () { try { hist.replaceState(null, '', loc.pathname); } catch (e) { /* ignore */ } };
+    async function post(path, params) { var r = await f(apiBase + path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(params).toString() }); var j = null; try { j = await r.json(); } catch (e) { /* empty */ } return { ok: r.ok, status: r.status, j: j || {} }; }
+    async function exchange(code, verifier) {
+      var r = await post('/oauth2/token', { code: code, grant_type: 'authorization_code', client_id: o.appKey, redirect_uri: o.redirectUri, code_verifier: verifier });
+      if (!r.ok || !r.j.access_token) throw new Error('Dropbox did not accept the sign-in (' + (r.j.error_description || r.j.error || r.status) + ').');
+      tok = { access: r.j.access_token, refresh: r.j.refresh_token || null, expiresAt: now() + (r.j.expires_in || 14400) * 1000, accountId: r.j.account_id || '' }; put(store, TOK, tok);
+    }
+    function refresh() {
+      if (!tok || !tok.refresh) { var e = new Error('Your Dropbox sign-in has expired - sign in again.'); e.expired = true; throw e; }
+      return refreshing || (refreshing = (async function () {
+        try {
+          var r = await post('/oauth2/token', { grant_type: 'refresh_token', refresh_token: tok.refresh, client_id: o.appKey });
+          if (!r.ok || !r.j.access_token) { if (r.status === 400 || r.status === 401) { tok = null; acct = null; store.removeItem(TOK); store.removeItem(ACC); var e2 = new Error('Your Dropbox sign-in has expired - sign in again.'); e2.expired = true; throw e2; } throw new Error('Dropbox is not reachable right now.'); }
+          tok = Object.assign({}, tok, { access: r.j.access_token, expiresAt: now() + (r.j.expires_in || 14400) * 1000 }); put(store, TOK, tok); return tok.access;
+        } finally { refreshing = null; }
+      })());
+    }
+    async function getToken() { if (!tok) throw new Error('not signed in'); return tok.expiresAt - now() > 60000 ? tok.access : refresh(); }
+    async function fetchAccount() {
+      var r = await f(apiBase + '/2/users/get_current_account', { method: 'POST', headers: { Authorization: 'Bearer ' + await getToken() } }); if (!r.ok) throw new Error('Could not read your Dropbox account (' + r.status + ').');
+      var j = await r.json(); return { id: j.account_id, name: (j.name && j.name.display_name) || '', email: j.email || '', rootNamespaceId: j.root_info && j.root_info.root_namespace_id };
+    }
+    return {
+      lastError: function () { return lastError; },
+      account: function () { return acct; },
+      async init() {
+        var q = new URLSearchParams(loc.search || '');
+        if (q.get('error')) { lastError = new Error(q.get('error_description') || q.get('error')); clean(); sess.removeItem(PK); }
+        else if (q.get('code')) {
+          var pk = get(sess, PK); clean(); sess.removeItem(PK);
+          if (!pk || pk.state !== q.get('state')) lastError = new Error('The sign-in answer did not match this browser session - please try again.');
+          else { try { await exchange(q.get('code'), pk.verifier); acct = null; store.removeItem(ACC); } catch (e) { lastError = e; } }
+        }
+        if (!tok) return null;
+        if (!acct) { try { acct = await fetchAccount(); put(store, ACC, acct); } catch (e) { lastError = lastError || e; return null; } }
+        return acct;
+      },
+      async signIn() {
+        var verifier = rand(48), state = rand(18), digest = await cr.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+        put(sess, PK, { verifier: verifier, state: state });
+        loc.assign(authBase + '/oauth2/authorize?' + new URLSearchParams({ client_id: o.appKey, response_type: 'code', code_challenge: b64url(new Uint8Array(digest)), code_challenge_method: 'S256', token_access_type: 'offline', redirect_uri: o.redirectUri, state: state, scope: SCOPE.join(' ') }).toString());
+      },
+      getToken: getToken,
+      async signOut() { try { if (tok) await f(apiBase + '/2/auth/token/revoke', { method: 'POST', headers: { Authorization: 'Bearer ' + tok.access } }); } catch (e) { /* best effort */ } tok = null; acct = null; store.removeItem(TOK); store.removeItem(ACC); }
+    };
+  }
+
+  return { TeamError: TeamError, createClient: createClient, createAuth: createAuth };
+})();
+if (typeof module !== 'undefined') module.exports = { TEAM: TEAM };
+
+/* ==TEAM-END== */</script>
 <script>
 (function(){
 'use strict';
@@ -431,11 +669,11 @@ var DB,S=null;
 function defaults(){return{projects:[],clients:[],settings:{roles:[{name:'Principal / PE',rate:''},{name:'Engineer',rate:''},{name:'Technician',rate:''},{name:'Drafter',rate:''}],prepBy:'',staff:[]}}}
 function loadDB(){
   var d=defaults();
-  try{var r=JSON.parse(localStorage.getItem(LS));if(r){d.projects=r.projects||[];d.clients=r.clients||[];d.settings=Object.assign(d.settings,r.settings||{});d.scan=r.scan||null}}catch(e){}
+  try{var r=JSON.parse(localStorage.getItem(storeKey()));if(r){d.projects=r.projects||[];d.clients=r.clients||[];d.settings=Object.assign(d.settings,r.settings||{});d.scan=r.scan||null}}catch(e){}
   DB=d;d.projects.forEach(norm);
   try{ /* bring the old single-draft autosave forward once */
     var o=localStorage.getItem(OLD);
-    if(o&&!localStorage.getItem(LS)){ /* only before the new store exists */var p=JSON.parse(o),n=blankProject();
+    if(o&&!localStorage.getItem(storeKey())){ /* only before the new store exists */var p=JSON.parse(o),n=blankProject();
       ['clientName','clientNo','clientAddr','projName','projNo','projAddr','projDesc','fee','fixedFee','nte','estNotes'].forEach(function(k){if(p[k]!=null)n[k]=p[k]});
       if(p.contacts&&p.contacts.length)n.contacts=p.contacts;
       if(p.lines&&p.lines.length)n.labor=p.lines.map(function(l){return{desc:l.desc||'',role:'',hours:l.hours||'',rate:l.rate||p.defRate||'',amount:l.amount||''}});
@@ -443,7 +681,7 @@ function loadDB(){
     }}catch(e){}
   return d;
 }
-function saveDB(){try{localStorage.setItem(LS,JSON.stringify(DB));$('status').textContent='Saved on this device'}catch(e){$('status').textContent='Could not save on this device'}}
+function saveDB(){if(!DB)return;try{localStorage.setItem(storeKey(),JSON.stringify(DB));$('status').textContent='Saved on this device'}catch(e){$('status').textContent='Could not save on this device'}}
 
 function blankContact(){return{name:'',title:'',email:'',phone:''}}
 function blankLabor(){return{desc:'',role:'',hours:'',rate:'',amount:''}}
@@ -455,6 +693,7 @@ function blankProject(){
     billSame:true,billName:'',billEmail:'',billAddr:'',
     areas:{tech:true,draft:true,data:false,prop:false},subs:{tech:autoSubs({services:[]},'tech'),draft:autoSubs({services:[]},'draft')},subAuto:{tech:true,draft:true},
     propName:'',propYear:String(new Date().getFullYear()),folderDone:null,
+    createdBy:ACCT?acctMini(ACCT):null,editedBy:null,remote:null,dirty:false,
     fee:'fixed',fixedFee:'',nte:'',contPct:'',labor:[blankLabor()],costs:[],milestones:[{name:'',pct:''}],estNotes:''};
 }
 /* bring older saved projects up to the current shape */
@@ -468,6 +707,10 @@ function norm(p){
   else if(!p.subs)p.subs=b.subs;
   if(!p.subAuto||typeof p.subAuto!=='object')p.subAuto={tech:p.subAuto!==false,draft:true};
   if(p.propName==null)p.propName='';
+  if(p.remote===undefined)p.remote=null;
+  if(p.dirty===undefined)p.dirty=false;
+  if(p.createdBy===undefined)p.createdBy=null;
+  if(p.editedBy===undefined)p.editedBy=null;
   if(!p.propYear)p.propYear=b.propYear;
   if(p.folderDone&&p.folderDone.path&&!p.folderDone.paths)p.folderDone.paths=[p.folderDone.path];
   ['contacts','labor','costs','milestones'].forEach(function(k){if(!Array.isArray(p[k]))p[k]=b[k]});
@@ -507,11 +750,14 @@ function upsertClient(P){
   var cons=P.contacts.filter(function(x){return x.name||x.email||x.phone});
   if(!c){c={no:P.clientNo.trim(),name:P.clientName.trim(),addr:'',contacts:[],known:[],width:2};DB.clients.push(c)}
   c.name=P.clientName.trim();c.no=P.clientNo.trim();
+  var before=JSON.stringify([c.name,c.addr,c.contacts]);
   if(P.clientAddr.trim())c.addr=P.clientAddr;
   if(cons.length)c.contacts=JSON.parse(JSON.stringify(cons));
+  if(JSON.stringify([c.name,c.addr,c.contacts])!==before)c.updated=Date.now();
 }
 function usedProjNums(no,exceptId){
   var u=[],c=findClientByNo(no);if(c&&c.known)u=u.concat(c.known);
+  if(c&&c.reserved)Object.keys(c.reserved).forEach(function(k){if(c.reserved[k].id!==exceptId){var n=parseInt(k,10);if(!isNaN(n))u.push(n)}});
   DB.projects.forEach(function(p){if(p.clientNo===no&&p.id!==exceptId&&p.projNo){var n=parseInt(p.projNo,10);if(!isNaN(n))u.push(n)}});
   return u;
 }
@@ -530,7 +776,7 @@ function nextClientNo(){
 /* ---------- persistence ---------- */
 var saveT;
 function persistNow(){
-  clearTimeout(saveT);
+  clearTimeout(saveT);if(!DB)return;
   if(S){
     if(!isEmpty(S)){if(DB.projects.indexOf(S)<0)DB.projects.push(S);upsertClient(S)}
     var u=S.lead,pb=S.prepBy;
@@ -539,7 +785,7 @@ function persistNow(){
   }
   saveDB();
 }
-function touch(){if(!S)return;S.updated=Date.now();clearTimeout(saveT);saveT=setTimeout(persistNow,300);derived()}
+function touch(){if(!S)return;S.updated=Date.now();if(S.remote)S.dirty=true;clearTimeout(saveT);saveT=setTimeout(persistNow,300);derived();if(CL)renderTeamBanner()}
 
 /* ---------- views ---------- */
 var view='dash',dashTab='all',dashQ='';
@@ -550,48 +796,96 @@ function show(v){
     $('bar'+n.charAt(0).toUpperCase()+n.slice(1)).classList.toggle('hidden',n!==v);
   });
   $('ttl').textContent=v==='dash'?'Project Kickoff':v==='clients'?'Clients':'New Project';
-  if(v==='dash')renderDash();
+  if(v==='dash'){renderDash();if(CL)refreshTeam()}
   if(v==='clients')renderClients();
+  $('dRefresh').classList.toggle('hidden',!(CL&&v==='dash'));
+  $('bUpload').classList.toggle('hidden',!(CL&&v==='form'));
   window.scrollTo(0,0);
 }
-function openProject(p){S=p;renderForm();show('form');derived()}
+function openProject(p){S=p;renderForm();show('form');derived();if(CL)renderTeamBanner();else $('tBanner').classList.add('hidden')}
 
 /* ---------- dashboard ---------- */
+function dashItems(){
+  var items=DB.projects.map(function(p){
+    return{id:p.id,p:p,sum:null,jobRef:jobRef(p),name:p.projName,client:p.clientName,status:p.status,fee:p.fee,total:calc(p).total,createdBy:p.createdBy,editedBy:p.editedBy,
+      updated:p.updated,state:CL?teamState(p):null,miss:missingList(p).length,folder:!!p.folderDone};
+  });
+  if(CL){
+    var have={};DB.projects.forEach(function(p){have[p.id]=1});
+    Object.keys(TIDX.sum).forEach(function(id){
+      if(have[id])return;var s=TIDX.sum[id];
+      items.push({id:id,p:null,sum:s,jobRef:s.jobRef,name:s.projName,client:s.clientName,status:s.status,fee:s.fee,total:s.total,createdBy:s.createdBy,
+        editedBy:s.editedBy||(s.modifiedBy?{name:s.modifiedBy.name,at:s.modifiedAt}:null),updated:s.updated,state:'teamonly',miss:0,folder:false});
+    });
+  }
+  return items;
+}
+function renderTeamBar(){
+  var el=$('teamBar');
+  if(!TEAMON){el.classList.add('hidden');return}
+  el.classList.remove('hidden');
+  if(!ACCT){el.innerHTML='Team sharing is on. <a href="#" id="acctIn">Sign in with Dropbox</a> to see and share projects.';return}
+  var n=TIDX.list.length;
+  el.innerHTML=TIDX.busy?'Checking the team…':(TIDX.err?'<span class="err">'+esc(TIDX.err)+'</span> Showing what is on this device.':n+' project'+(n===1?'':'s')+' on the team'+(TIDX.at?' · checked '+new Date(TIDX.at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):''));
+}
+function whoLine(it){
+  if(!CL)return '';
+  var cb=it.createdBy&&(it.createdBy.name||it.createdBy.email),eb=it.editedBy&&(it.editedBy.name||it.editedBy.email);
+  var h=cb?'Created by '+esc(cb):'';
+  if(eb&&(!cb||eb!==cb))h+=(h?' · ':'')+'edited by '+esc(eb)+(it.editedBy.at?', '+fmtDate(it.editedBy.at):'');
+  return h?'<div class="who">'+h+'</div>':'';
+}
 function renderDash(){
-  var ps=DB.projects.slice().sort(function(a,b){return b.updated-a.updated});
-  var nd=ps.filter(function(p){return p.status!=='complete'}).length,nc=ps.length-nd;
+  renderTeamBar();
+  var items=dashItems().sort(function(a,b){return b.updated-a.updated});
+  var nd=items.filter(function(i){return i.status!=='complete'}).length,nc=items.length-nd;
   var tb=$('dashTabs').querySelectorAll('button');
-  tb[0].textContent='All ('+ps.length+')';tb[1].textContent='Drafts ('+nd+')';tb[2].textContent='Complete ('+nc+')';
+  tb[0].textContent='All ('+items.length+')';tb[1].textContent='Drafts ('+nd+')';tb[2].textContent='Complete ('+nc+')';
   Array.prototype.forEach.call(tb,function(b){b.classList.toggle('on',b.getAttribute('data-tab')===dashTab)});
   var q=dashQ.toLowerCase().trim();
-  var list=ps.filter(function(p){
-    var okT=dashTab==='all'||(dashTab==='draft'&&p.status!=='complete')||(dashTab==='complete'&&p.status==='complete');
-    return okT&&(!q||(jobRef(p)+' '+p.projName+' '+p.clientName).toLowerCase().indexOf(q)>=0);
+  var list=items.filter(function(i){
+    var okT=dashTab==='all'||(dashTab==='draft'&&i.status!=='complete')||(dashTab==='complete'&&i.status==='complete');
+    var hay=(i.jobRef+' '+i.name+' '+i.client+' '+(i.createdBy?(i.createdBy.name||''):'')).toLowerCase();
+    return okT&&(!q||hay.indexOf(q)>=0);
   });
-  if(!list.length){$('dashList').innerHTML='<div class="empty">'+(ps.length?'No projects match.':'No projects yet.<br>Tap <b>＋ New project</b> to start one.')+'</div>';return}
-  $('dashList').innerHTML=list.map(function(p){
-    var c=calc(p),miss=missingList(p).length;
-    return '<div class="pcard" data-open="'+p.id+'"><div class="pc-top"><b>'+esc(jobRef(p))+'</b><span>'+
-      '<span class="badge fee">'+(p.fee==='fixed'?'Fixed fee':'T&amp;M')+'</span>'+
-      '<span class="badge '+(p.status==='complete'?'complete':'draft')+'">'+(p.status==='complete'?'Complete':'Draft')+'</span></span></div>'+
-      '<div class="pc-name">'+esc(p.projName||'Untitled project')+'</div>'+
-      '<div class="pc-sub">'+esc(p.clientName||'No client yet')+(c.total>0?' · '+money(c.total):'')+'</div>'+
-      '<div class="pc-foot"><span>Updated '+fmtDate(p.updated)+(p.status!=='complete'&&miss?' · '+miss+' item'+(miss>1?'s':'')+' missing':'')+(p.folderDone?' · folder created':'')+'</span>'+
-      '<span><button type="button" data-dup="'+p.id+'" title="Duplicate">⧉</button> <button type="button" data-del="'+p.id+'" title="Delete" style="color:var(--danger)">🗑</button></span></div></div>';
+  if(!list.length){$('dashList').innerHTML='<div class="empty">'+(items.length?'No projects match.':'No projects yet.<br>Tap <b>＋ New project</b> to start one.')+'</div>';return}
+  $('dashList').innerHTML=list.map(function(i){
+    var st=i.state,chip=st?'<span class="badge '+(st==='synced'||st==='teamonly'?'team':'warn')+'">'+esc(STATE_TXT[st]||'')+'</span>':'';
+    var acts='';
+    if(CL&&i.p){
+      if(st==='local'||st==='dirty'||st==='gone')acts+='<button type="button" class="primary" data-up="'+i.id+'">Upload</button>';
+      if(st==='newer')acts+='<button type="button" class="primary" data-down="'+i.id+'">Get latest</button>';
+      if(st==='both')acts+='<button type="button" class="primary" data-resolve="'+i.id+'">Resolve…</button>';
+    }
+    if(i.p)acts+='<button type="button" data-dup="'+i.id+'" title="Duplicate">⧉</button>';
+    acts+='<button type="button" data-del="'+i.id+'" title="Delete" style="color:var(--danger)">🗑</button>';
+    return '<div class="pcard" '+(i.p?'data-open':'data-opent')+'="'+i.id+'"><div class="pc-top"><b>'+esc(i.jobRef)+'</b><span>'+
+      '<span class="badge fee">'+(i.fee==='fixed'?'Fixed fee':'T&amp;M')+'</span>'+
+      '<span class="badge '+(i.status==='complete'?'complete':'draft')+'">'+(i.status==='complete'?'Complete':'Draft')+'</span>'+chip+'</span></div>'+
+      '<div class="pc-name">'+esc(i.name||'Untitled project')+'</div>'+
+      '<div class="pc-sub">'+esc(i.client||'No client yet')+(i.total>0?' · '+money(i.total):'')+'</div>'+whoLine(i)+
+      '<div class="pc-foot"><span>Updated '+fmtDate(i.updated)+(i.status!=='complete'&&i.miss?' · '+i.miss+' item'+(i.miss>1?'s':'')+' missing':'')+(i.folder?' · folder created':'')+'</span>'+
+      '<span class="acts">'+acts+'</span></div></div>';
   }).join('');
 }
 $('dashTabs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;dashTab=b.getAttribute('data-tab');renderDash()});
 $('dashQ').addEventListener('input',function(){dashQ=this.value;renderDash()});
 $('dashList').addEventListener('click',function(e){
-  var d=e.target.closest('[data-dup]'),x=e.target.closest('[data-del]'),o=e.target.closest('[data-open]');
-  if(d){var src=byId(d.getAttribute('data-dup'));if(!src)return;
+  var g=function(a){var el=e.target.closest('['+a+']');return el?el.getAttribute(a):null};
+  var up=g('data-up'),dn=g('data-down'),rs=g('data-resolve'),d=g('data-dup'),x=g('data-del'),o=g('data-open'),ot=g('data-opent');
+  if(up){var pu=byId(up);if(pu)syncUp(pu);return}
+  if(dn){var pd=byId(dn);if(pd)syncDown(pd);return}
+  if(rs){var pr=byId(rs);if(pr)resolveConflict(pr);return}
+  if(d){var src=byId(d);if(!src)return;
     var n=JSON.parse(JSON.stringify(src));n.id=uid();n.status='draft';n.created=n.updated=Date.now();n.projNo='';n.folderDone=null;
+    n.remote=null;n.dirty=false;n.createdBy=ACCT?acctMini(ACCT):null;n.editedBy=null;
     DB.projects.push(n);saveDB();toast('Duplicated. Set the new project number.');openProject(n);return}
-  if(x){var p=byId(x.getAttribute('data-del'));if(p&&confirm('Delete "'+(p.projName||jobRef(p))+'"? This cannot be undone.')){DB.projects.splice(DB.projects.indexOf(p),1);saveDB();renderDash()}return}
-  if(o)openProject(byId(o.getAttribute('data-open')));
+  if(x){var p=byId(x);deleteProject(p,p?null:TIDX.sum[x]);return}
+  if(o){openProject(byId(o));return}
+  if(ot)openTeamProject(ot);
 });
 function byId(id){return DB.projects.filter(function(p){return p.id===id})[0]}
-$('dNew').onclick=function(){S=blankProject();renderForm();show('form');derived()};
+$('dNew').onclick=function(){S=blankProject();renderForm();show('form');derived();if(CL)renderTeamBanner();else $('tBanner').classList.add('hidden')};
 $('dClients').onclick=function(){show('clients')};
 $('cBack').onclick=function(){show('dash')};
 $('bBack').onclick=function(){persistNow();S=null;show('dash')};
@@ -814,16 +1108,18 @@ function plan(P){
   return out;
 }
 $('fCreate').onclick=async function(){
-  if(!hasFS)return;
+  if(!hasFS&&!CL)return;
   var miss=[];if(!S.clientNo)miss.push('client number');if(!S.clientName)miss.push('client name');if(!S.projNo)miss.push('project number');if(!S.projName)miss.push('project name');
   if(miss.length){alert('Fill in the '+miss.join(', ')+' first.');return}
   var pl=plan(S);if(!pl.length){alert('Tick at least one folder location first.');return}
-  var R=await getRoot(false);if(!R)return;
+  var R=null;
+  if(!CL){R=await getRoot(false);if(!R)return}
   var txt=pl.map(function(x){return x.path+(x.subs.length?'\n      + '+x.subs.join('\n      + '):'')}).join('\n\n');
   if(!confirm('Create these folders in your Dropbox?\n\n'+txt+'\n\nAnything that already exists is left alone.'))return;
   try{
     var kc=findClientByNo(S.clientNo)||{};
-    var rep=await createAreas(R,{clientNo:S.clientNo,clientName:S.clientName,clientSavedName:kc.name,knownNums:kc.known||[],projNo:S.projNo,projName:S.projName,areas:S.areas,subs:S.subs,propYear:S.propYear,propName:S.propName});
+    var args={clientNo:S.clientNo,clientName:S.clientName,clientSavedName:kc.name,knownNums:kc.known||[],projNo:S.projNo,projName:S.projName,areas:S.areas,subs:S.subs,propYear:S.propYear,propName:S.propName};
+    var rep=CL?await apiCreateAreas(args):await createAreas(R,args);
     var made=rep.filter(function(r){return !r.skipped}),skipped=rep.filter(function(r){return r.skipped});
     if(made.length){S.folderDone={at:Date.now(),paths:made.map(function(r){return r.area+'\\'+r.path.join('\\')})};touch();persistNow()}
     refreshFolder();
@@ -1030,9 +1326,19 @@ function derived(){
   if(P.clientNo.trim()){
     var used=usedProjNums(P.clientNo.trim(),P.id),pn=parseInt(P.projNo,10);
     var kc2=findClientByNo(P.clientNo.trim()),blind=!DB.scan&&!used.length&&!(kc2&&kc2.known&&kc2.known.length);
-    if(blind)hp=hasFS?'Next number unknown: your Dropbox has not been read on this device yet. <button type="button" id="scanNow">Read Dropbox</button>'
+    var cn=P.clientNo.trim(),loading=false;
+    if(CL&&/^\d{4}$/.test(cn)&&!DBXC.numbers[cn]){
+      DBXC.numbers[cn]='loading';loading=true;
+      dbxLoadNumbers(cn).then(function(){DBXC.numbers[cn]=Date.now();derived()}).catch(function(){DBXC.numbers[cn]=Date.now()});
+    }else if(DBXC.numbers[cn]==='loading')loading=true;
+    if(loading)hp='Checking Dropbox for this client\'s project numbers…';
+    else if(blind)hp=hasFS?'Next number unknown: your Dropbox has not been read on this device yet. <button type="button" id="scanNow">Read Dropbox</button>'
       :'No project numbers are on file for this client on this device. Type the number, or import the client list from your computer (Clients).';
-    else if(P.projNo&&used.indexOf(pn)>=0)hp='<span class="err">Number '+esc(P.projNo)+' is already used for this client.</span> Next free: <b>'+nextProjNum(P.clientNo.trim())+'</b> <button type="button" id="useProjNo">Use it</button>';
+    else if(P.projNo&&used.indexOf(pn)>=0){
+      var rv=kc2&&kc2.reserved&&kc2.reserved[String(pn)],rvs=rv&&rv.id!==P.id?' (taken by '+esc(rv.by||'someone')+' for "'+esc(rv.name||'another project')+'")':'';
+      hp='<span class="err">Number '+esc(P.projNo)+' is already used for this client'+rvs+'.</span> Next free: <b>'+nextProjNum(P.clientNo.trim())+'</b> <button type="button" id="useProjNo">Use it</button>';
+    }
+    else if(false)hp='<span class="err">Number '+esc(P.projNo)+' is already used for this client.</span> Next free: <b>'+nextProjNum(P.clientNo.trim())+'</b> <button type="button" id="useProjNo">Use it</button>';
     else if(!P.projNo)hp='Next free number: <b>'+nextProjNum(P.clientNo.trim())+'</b> <button type="button" id="useProjNo">Use it</button>';
   }
   $('hProj').innerHTML=hp;
@@ -1069,12 +1375,12 @@ function derived(){
 }
 function refreshFolder(){
   updatePaths();
-  $('fCreate').classList.toggle('hidden',!hasFS);
+  $('fCreate').classList.toggle('hidden',!(hasFS||CL));
   var hint='';
   if(S.folderDone)hint='<span class="ok">Created '+fmtDate(S.folderDone.at)+': '+(S.folderDone.paths||[]).map(esc).join('<br>')+'</span>';
-  else if(!hasFS)hint='Creating folders directly needs Chrome or Edge on a computer. Here, use <b>Copy folder name</b> or <b>Copy paths</b> and use them when you make the folders in Dropbox.';
+  else if(!hasFS&&!CL)hint='Creating folders directly needs Chrome or Edge on a computer. Here, use <b>Copy folder name</b> or <b>Copy paths</b> and use them when you make the folders in Dropbox.';
   $('fHint').innerHTML=hint;
-  $('fRoot').innerHTML=hasFS?'Folders are made inside your Dropbox <b>Johnson Engineering Group</b> folder, which you choose the first time. <button type="button" class="small" id="fChange">Choose a different folder</button>':'';
+  $('fRoot').innerHTML=CL?'Folders are created through your Dropbox sign-in, so this works on the iPad too.':hasFS?'Folders are made inside your Dropbox <b>Johnson Engineering Group</b> folder, which you choose the first time. <button type="button" class="small" id="fChange">Choose a different folder</button>':'';
 }
 
 /* ---------- events ---------- */
@@ -1278,9 +1584,350 @@ window.addEventListener('pagehide',function(){persistNow()});
 document.addEventListener('visibilitychange',function(){if(document.hidden)persistNow()});
 
 /* ---------- start ---------- */
-DB=loadDB();
-try{if(!localStorage.getItem(LS))saveDB()}catch(e){}
-show('dash');
+/* ==SHELL-TEAM-BEGIN== */
+/* ---------- team mode (Dropbox sign-in + shared projects) ---------- */
+/* Pasted into Project_Kickoff_Form.html by _tools/build-kickoff.js (between the SHELL-TEAM markers). Runs inside the app's main closure. */
+var CFG=window.TEAM_CONFIG||{mode:'off'};
+var TEAMON=CFG.mode==='dropbox'&&!!CFG.appKey&&/^https?:$/.test(location.protocol);
+var AUTH=null,CL=null,ACCT=null,CLIENTS_REV=null;
+var TIDX={sum:{},list:[],at:0,err:'',busy:false};     /* sum[id] = summary of the team's copy (cached on the device) */
+var TKEY='kickoff.teamsum';
+try{var tc=JSON.parse(localStorage.getItem(TKEY)||'null');if(tc&&tc.sum)TIDX.sum=tc.sum}catch(e){}
+function saveTeamCache(){try{localStorage.setItem(TKEY,JSON.stringify({sum:TIDX.sum}))}catch(e){}}
+function storeKey(){return ACCT?LS+':'+ACCT.id:LS}
+function acctMini(a){return a?{name:a.name,email:a.email}:null}
+function whoName(w){return w&&(w.name||w.email)?(w.name||w.email):'someone'}
+
+async function teamInit(){
+  if(!TEAMON)return;
+  AUTH=TEAM.createAuth({appKey:CFG.appKey,redirectUri:CFG.redirectUri||(location.origin+location.pathname),storage:localStorage,session:sessionStorage,
+    location:location,history:history,crypto:window.crypto,authBase:CFG.authBase,apiBase:CFG.apiBase});
+  try{ACCT=await AUTH.init()}catch(e){ACCT=null}
+  if(ACCT){
+    CL=TEAM.createClient({apiBase:CFG.apiBase,contentBase:CFG.contentBase,folder:CFG.folder,groupFolder:CFG.groupFolder,
+      rootNamespaceId:ACCT.rootNamespaceId,getToken:function(){return AUTH.getToken()}});
+    /* first sign-in on this device: the drafts made before signing in come along, once */
+    try{
+      var k=storeKey();
+      if(!localStorage.getItem(k)&&localStorage.getItem(LS)&&!localStorage.getItem('kickoff.adopted')){
+        localStorage.setItem(k,localStorage.getItem(LS));localStorage.setItem('kickoff.adopted',ACCT.id);
+      }
+    }catch(e){}
+  }
+}
+
+/* ----- account strip + sign-in screen ----- */
+function renderAcct(){
+  var el=$('acct');
+  if(!TEAMON){el.innerHTML='';return}
+  el.innerHTML=ACCT?'Signed in as <b>'+esc(ACCT.name||ACCT.email)+'</b> · <a href="#" id="acctOut">Sign out</a>':'Not signed in · <a href="#" id="acctIn">Sign in</a>';
+}
+function showSignIn(msg){
+  var err=AUTH&&AUTH.lastError();
+  $('signMsg').textContent=msg||(err?err.message:'');
+  $('ovSign').classList.remove('hidden');
+}
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(t.id==='acctOut'||t.id==='signOutBtn'){e.preventDefault();if(AUTH)AUTH.signOut().then(function(){location.reload()});return}
+  if(t.id==='acctIn'||t.id==='signInBtn'){e.preventDefault();if(AUTH)AUTH.signIn();return}
+  if(t.id==='signLocal'){e.preventDefault();try{sessionStorage.setItem('kickoff.local','1')}catch(x){}$('ovSign').classList.add('hidden');return}
+});
+
+/* ----- what the team has ----- */
+function summarize(p,meta){
+  var c=calc(p);
+  return{id:p.id,eTag:meta.eTag,jobRef:jobRef(p),projName:p.projName,clientName:p.clientName,fee:p.fee,total:c.total,status:p.status,
+    createdBy:p.createdBy||null,editedBy:p.editedBy||null,updated:p.updated||meta.modifiedAt,modifiedBy:meta.modifiedBy,modifiedAt:meta.modifiedAt};
+}
+async function refreshTeam(force){
+  if(!CL||TIDX.busy)return;
+  if(!force&&Date.now()-TIDX.at<30000)return;
+  TIDX.busy=true;TIDX.err='';if(view==='dash')renderDash();
+  try{
+    var list=await CL.listProjects();
+    TIDX.list=list;
+    var need=list.filter(function(m){var s=TIDX.sum[m.id];return !s||s.eTag!==m.eTag});
+    var i=0;
+    async function worker(){
+      while(i<need.length){
+        var m=need[i++],lp=byId(m.id);
+        try{
+          if(lp&&lp.remote&&lp.remote.rev===m.eTag)TIDX.sum[m.id]=summarize(lp,m);
+          else{var g=await CL.getProject(m.id);var tp=norm(Object.assign(blankProject(),g.project));tp.id=m.id;TIDX.sum[m.id]=summarize(tp,m)}
+        }catch(e){/* skip unreadable file */}
+      }
+    }
+    await Promise.all([worker(),worker(),worker(),worker()]);
+    var ids={};list.forEach(function(m){ids[m.id]=1});
+    Object.keys(TIDX.sum).forEach(function(k){if(!ids[k])delete TIDX.sum[k]});
+    TIDX.at=Date.now();saveTeamCache();
+    await syncClientsDown();
+    dbxLoadClientFolders().then(function(){if(view==='dash')renderDash()}).catch(function(){});
+  }catch(e){TIDX.err=e.code==='auth'?'Sign in again to see the team.':e.message}
+  TIDX.busy=false;
+  if(view==='dash')renderDash();
+  if(view==='form'&&S)renderTeamBanner();
+}
+function teamMeta(id){return TIDX.list.filter(function(m){return m.id===id})[0]||null}
+function teamState(p){
+  if(!CL)return null;
+  var m=teamMeta(p.id);
+  if(!p.remote)return 'local';
+  if(!m)return TIDX.at?'gone':'unknown';
+  var newer=m.eTag!==p.remote.rev;
+  if(p.dirty&&newer)return 'both';
+  if(p.dirty)return 'dirty';
+  return newer?'newer':'synced';
+}
+var STATE_TXT={local:'This device only',synced:'Shared · up to date',dirty:'Changes not uploaded',newer:'Newer on the team',both:'Both changed',gone:'Not on the team any more',unknown:'Shared',teamonly:'On the team'};
+
+/* ----- upload / download / conflicts ----- */
+function payloadOf(p){
+  var c=JSON.parse(JSON.stringify(p));delete c.remote;delete c.dirty;
+  if(!c.createdBy||!(c.createdBy.name||c.createdBy.email))c.createdBy=acctMini(ACCT);
+  c.editedBy={name:ACCT.name,email:ACCT.email,at:Date.now()};
+  return c;
+}
+async function syncUp(p,quiet){
+  if(!CL)return false;
+  if(p===S)persistNow();
+  if(isEmpty(p)){toast('Nothing to upload yet.');return false}
+  try{
+    var payload=payloadOf(p),meta=await CL.putProject(payload,p.remote?p.remote.rev:null);
+    p.createdBy=payload.createdBy;p.editedBy=payload.editedBy;p.remote={rev:meta.eTag};p.dirty=false;
+    reserveNumber(p);
+    TIDX.sum[p.id]=summarize(p,meta);TIDX.list=TIDX.list.filter(function(m){return m.id!==p.id}).concat([meta]);saveTeamCache();
+    saveDB();await syncClientsUp();
+    if(!quiet)toast('Uploaded to the team.');
+    return true;
+  }catch(e){
+    if(e.code==='conflict'){await resolveConflict(p);return false}
+    alert(e.code==='offline'?'You are offline. It stays on this device and can be uploaded later.':e.message);return false;
+  }finally{if(view==='dash')renderDash();if(view==='form'&&S===p)renderTeamBanner()}
+}
+function replaceProject(p,n){
+  Object.keys(p).forEach(function(k){delete p[k]});Object.assign(p,n);saveDB();
+  if(S===p){renderForm();derived()}
+}
+async function syncDown(p){
+  if(!CL)return false;
+  try{
+    var r=await CL.getProject(p.id),n=norm(Object.assign(blankProject(),r.project));
+    n.id=p.id;n.remote={rev:r.eTag};n.dirty=false;replaceProject(p,n);
+    var m=teamMeta(p.id);if(m){m.eTag=r.eTag}
+    TIDX.sum[p.id]=summarize(p,{eTag:r.eTag,modifiedBy:r.modifiedBy,modifiedAt:r.modifiedAt});saveTeamCache();
+    toast('Got the latest from the team.');return true;
+  }catch(e){alert(e.message);return false}
+  finally{if(view==='dash')renderDash();if(view==='form'&&S===p)renderTeamBanner()}
+}
+var conflictFor=null;
+function resolveConflict(p){
+  conflictFor=p;
+  var m=teamMeta(p.id),by=m&&m.modifiedBy&&(m.modifiedBy.name||m.modifiedBy.email);
+  $('cfText').innerHTML=esc(by||'Someone')+' changed <b>'+esc(p.projName||jobRef(p))+'</b> on the team'+(m&&m.modifiedAt?' ('+fmtDate(m.modifiedAt)+')':'')+', and you also have changes on this device. What should happen?';
+  $('ovConflict').classList.remove('hidden');
+  return new Promise(function(res){conflictFor.__done=res});
+}
+async function conflictChoice(kind){
+  var p=conflictFor;if(!p)return;
+  $('ovConflict').classList.add('hidden');var done=p.__done;delete p.__done;conflictFor=null;
+  try{
+    if(kind==='mine'){
+      var meta=await CL.listProjects().then(function(l){TIDX.list=l;return l.filter(function(x){return x.id===p.id})[0]});
+      p.remote={rev:meta?meta.eTag:null};await syncUp(p);
+    }else if(kind==='theirs'){await syncDown(p)}
+    else if(kind==='both'){
+      var copy=JSON.parse(JSON.stringify(p));copy.id=uid();copy.remote=null;copy.dirty=false;copy.projName=(copy.projName||'Project')+' (my version)';copy.projNo='';copy.updated=Date.now();
+      delete copy.__done;DB.projects.push(copy);saveDB();
+      await syncDown(p);toast('Kept both. Your version is saved as "'+copy.projName+'" with no project number yet.');
+    }
+  }finally{if(done)done();if(view==='dash')renderDash()}
+}
+$('cfMine').onclick=function(){conflictChoice('mine')};
+$('cfTheirs').onclick=function(){conflictChoice('theirs')};
+$('cfBoth').onclick=function(){conflictChoice('both')};
+$('cfCancel').onclick=function(){$('ovConflict').classList.add('hidden');if(conflictFor){var d=conflictFor.__done;delete conflictFor.__done;conflictFor=null;if(d)d()}};
+
+async function openTeamProject(id){
+  if(!CL)return;
+  try{
+    var r=await CL.getProject(id),n=norm(Object.assign(blankProject(),r.project));
+    n.id=id;n.remote={rev:r.eTag};n.dirty=false;
+    var ex=byId(id);if(ex){replaceProject(ex,n);openProject(ex)}else{DB.projects.push(n);saveDB();openProject(n)}
+  }catch(e){alert(e.message)}
+}
+async function deleteProject(p,sum){
+  var id=p?p.id:sum.id,name=(p?p.projName:sum.projName)||'this project';
+  var onTeam=!!(CL&&(sum||(p&&p.remote)));
+  if(!onTeam){if(p&&confirm('Delete "'+name+'"? This cannot be undone.')){DB.projects.splice(DB.projects.indexOf(p),1);saveDB();renderDash()}return}
+  $('delText').innerHTML='<b>'+esc(name)+'</b> is shared with the team.';
+  $('delLocal').classList.toggle('hidden',!p);
+  $('ovDel').classList.remove('hidden');
+  delCtx={p:p,id:id,name:name};
+}
+var delCtx=null;
+$('delLocal').onclick=function(){var c=delCtx;$('ovDel').classList.add('hidden');if(!c||!c.p)return;DB.projects.splice(DB.projects.indexOf(c.p),1);saveDB();renderDash();toast('Removed from this device. It is still on the team.')};
+$('delAll').onclick=async function(){
+  var c=delCtx;if(!c)return;$('ovDel').classList.add('hidden');
+  if(!confirm('Delete "'+c.name+'" for everyone? Dropbox keeps deleted files recoverable for a while, but the team will no longer see it.'))return;
+  try{await CL.removeProject(c.id,c.p&&c.p.remote?c.p.remote.rev:null);
+    if(c.p)DB.projects.splice(DB.projects.indexOf(c.p),1);
+    delete TIDX.sum[c.id];TIDX.list=TIDX.list.filter(function(m){return m.id!==c.id});saveDB();saveTeamCache();renderDash();toast('Deleted for everyone.')}
+  catch(e){alert(e.code==='conflict'?'Someone changed it since you last got it. Open it and use Get latest first.':e.message)}
+};
+$('delCancel').onclick=function(){$('ovDel').classList.add('hidden');delCtx=null};
+
+/* ----- shared client list + reserved project numbers ----- */
+function shareableClients(){
+  return DB.clients.filter(function(c){return c.addr||(c.contacts&&c.contacts.length)||(c.reserved&&Object.keys(c.reserved).length)})
+    .map(function(c){return{no:c.no,name:c.name,addr:c.addr||'',contacts:c.contacts||[],reserved:c.reserved||{},updated:c.updated||0}});
+}
+function mergeSharedClients(list){
+  var changed=false;
+  list.forEach(function(c){
+    var ex=findClientByNo(c.no)||findClientByName(c.name);
+    if(!ex){DB.clients.push({no:c.no,name:c.name,addr:c.addr||'',contacts:c.contacts||[],known:[],width:2,reserved:c.reserved||{},updated:c.updated||0});changed=true;return}
+    if((c.updated||0)>(ex.updated||0)){ex.name=c.name||ex.name;if(c.addr)ex.addr=c.addr;if(c.contacts&&c.contacts.length)ex.contacts=c.contacts;ex.updated=c.updated;changed=true}
+    var r=Object.assign({},ex.reserved||{},c.reserved||{});
+    if(JSON.stringify(r)!==JSON.stringify(ex.reserved||{})){ex.reserved=r;changed=true}
+  });
+  if(changed)saveDB();
+}
+async function syncClientsDown(){
+  var r=await CL.getClients();CLIENTS_REV=r.eTag;
+  if(r.data&&r.data.clients)mergeSharedClients(r.data.clients);
+}
+async function syncClientsUp(){
+  for(var attempt=0;attempt<2;attempt++){
+    try{CLIENTS_REV=await CL.putClients({version:1,clients:shareableClients()},CLIENTS_REV);return}
+    catch(e){if(e.code==='conflict'&&attempt===0){await syncClientsDown();continue}throw e}
+  }
+}
+function reserveNumber(p){
+  if(!p.clientNo||!p.projNo)return;
+  var c=findClientByNo(p.clientNo);if(!c)return;
+  var n=String(parseInt(p.projNo,10));if(n==='NaN')return;
+  c.reserved=c.reserved||{};
+  Object.keys(c.reserved).forEach(function(k){if(c.reserved[k].id===p.id&&k!==n)delete c.reserved[k]});
+  c.reserved[n]={id:p.id,name:p.projName,by:ACCT?ACCT.name:''};c.updated=Date.now();
+}
+
+/* ----- the company folder tree through the Dropbox API (works on the iPad too) ----- */
+var DBXC={tech:null,draft:null,at:0,numbers:{}};
+function dirOfNo(list,no){return(list||[]).filter(function(n){return n===no||n.indexOf(no+' ')===0})[0]||null}
+async function dbxLoadClientFolders(force){
+  if(!CL)return;
+  if(!force&&DBXC.tech&&Date.now()-DBXC.at<600000)return;
+  DBXC.tech=(await CL.listDirs(CL.group+'/Technical'))||[];
+  DBXC.draft=(await CL.listDirs(CL.group+'/Drafting'))||[];
+  DBXC.at=Date.now();
+  var changed=false;
+  DBXC.tech.forEach(function(n){
+    var m=/^(\d{4}) (.+)$/.exec(n);if(!m||m[1]==='0000'||/conflict/i.test(n))return;
+    var c=findClientByNo(m[1]);
+    if(!c){DB.clients.push({no:m[1],name:m[2].trim(),addr:'',contacts:[],known:[],width:2});changed=true}
+    else if(c.name!==m[2].trim()&&!c.updated){c.name=m[2].trim();changed=true}
+  });
+  if(changed)saveDB();
+}
+async function dbxLoadNumbers(no){
+  if(!CL)return;
+  await dbxLoadClientFolders();
+  var nums=[],width=2;
+  var areas=[['Technical',dirOfNo(DBXC.tech,no)],['Drafting',dirOfNo(DBXC.draft,no)]];
+  for(var i=0;i<areas.length;i++){
+    if(!areas[i][1])continue;
+    var subs=await CL.listDirs(CL.group+'/'+areas[i][0]+'/'+areas[i][1])||[];
+    subs.forEach(function(n){var m=/^(\d{1,3})(?:\s|$)/.exec(n);if(m){var v=parseInt(m[1],10);if(nums.indexOf(v)<0)nums.push(v);width=Math.max(width,m[1].length)}});
+  }
+  var c=findClientByNo(no);
+  if(!c){var nm=dirOfNo(DBXC.tech,no);c={no:no,name:nm?nm.replace(/^\d{4} /,''):'',addr:'',contacts:[],known:[],width:2};if(c.name)DB.clients.push(c);else c=null}
+  if(c){c.known=nums;c.width=width}
+  DB.scan=DB.scan||{proposals:{},at:Date.now()};DB.scan.at=Date.now();
+  saveDB();
+}
+async function dbxProposalNo(year){
+  var top=await CL.listDirs(CL.group+'/Proposals');if(!top)return null;
+  var yd=top.filter(function(n){return n.indexOf(year+' Proposals')===0})[0];if(!yd)return 0;
+  var kids=await CL.listDirs(CL.group+'/Proposals/'+yd)||[],mx=0;
+  kids.forEach(function(n){var m=/^(\d+)(?:\s|$)/.exec(n);if(m)mx=Math.max(mx,parseInt(m[1],10))});
+  return mx;
+}
+async function apiEnsureTree(areaName,o,subs){
+  var res={path:[],clientCreated:false,projCreated:false,subsCreated:[],projExisted:false};
+  var root=CL.group+'/'+areaName,dirs=await CL.listDirs(root);
+  if(dirs===null)return{skipped:'no "'+areaName+'" folder found'};
+  var cname=dirOfNo(dirs,o.clientNo);
+  if(!cname){cname=o.clientNo+' '+cleanName(o.clientName);await CL.createFolder(root+'/'+cname);res.clientCreated=true}
+  var pdirs=res.clientCreated?[]:(await CL.listDirs(root+'/'+cname)||[]),want=parseInt(o.projNo,10);
+  var pname=pdirs.filter(function(n){var m=/^(\d+)(?:\s|$)/.exec(n);return m&&parseInt(m[1],10)===want})[0];
+  if(pname)res.projExisted=true;
+  else{pname=o.projNo+' '+cleanName(o.projName);await CL.createFolder(root+'/'+cname+'/'+pname);res.projCreated=true}
+  res.path=[cname,pname];
+  for(var i=0;i<subs.length;i++){
+    var s=cleanName(subs[i]);if(!s)continue;
+    if((await CL.createFolder(root+'/'+cname+'/'+pname+'/'+s))==='created')res.subsCreated.push(s);
+  }
+  return res;
+}
+async function apiCreateAreas(o){
+  var out=[],want=[['tech','Technical'],['draft','Drafting'],['data','Data Files']];
+  for(var i=0;i<want.length;i++){
+    var k=want[i][0],nm=want[i][1];if(!o.areas[k])continue;
+    var r=await apiEnsureTree(nm,o,k==='data'?[]:(o.subs[k]||[]));
+    if(r.skipped)out.push({area:nm,skipped:r.skipped});else{r.area=nm;out.push(r)}
+  }
+  if(o.areas.prop){
+    var top=await CL.listDirs(CL.group+'/Proposals');
+    if(top===null)out.push({area:'Proposals',skipped:'no "Proposals" folder found'});
+    else{
+      var yd=top.filter(function(n){return n.indexOf(o.propYear+' Proposals')===0})[0],ycreated=false;
+      if(!yd){yd=o.propYear+' Proposals';await CL.createFolder(CL.group+'/Proposals/'+yd)}
+      var kids=await CL.listDirs(CL.group+'/Proposals/'+yd)||[],mx=0,found=null,wantName=cleanName(o.propName||o.projName).toLowerCase();
+      kids.forEach(function(n){var m=/^(\d+)(?:\s+(.*))?$/.exec(n);if(!m)return;mx=Math.max(mx,parseInt(m[1],10));if(m[2]&&m[2].trim().toLowerCase()===wantName)found=n});
+      var pn=found;
+      if(!found){pn=pad(mx+1,2)+' '+cleanName(o.propName||o.projName);await CL.createFolder(CL.group+'/Proposals/'+yd+'/'+pn)}
+      out.push({area:'Proposals',path:[yd,pn],projCreated:!found,projExisted:!!found,clientCreated:false,subsCreated:[]});
+    }
+  }
+  return out;
+}
+
+/* ----- form banner: who made it, and sync state ----- */
+function renderTeamBanner(){
+  var b=$('tBanner');
+  if(!CL||!S){b.classList.add('hidden');return}
+  var st=teamState(S),parts=[];
+  var cb=S.createdBy&&whoName(S.createdBy),eb=S.editedBy&&whoName(S.editedBy);
+  if(cb)parts.push('Created by <b>'+esc(cb)+'</b>');
+  if(eb&&S.editedBy.at)parts.push('last uploaded by <b>'+esc(eb)+'</b>, '+fmtDate(S.editedBy.at));
+  var h='<span class="badge '+(st==='synced'?'complete':'draft')+'" style="margin-left:0">'+esc(STATE_TXT[st]||'')+'</span> '+parts.join(' · ');
+  if(st==='local'||st==='dirty'||st==='gone')h+=' <button class="small" type="button" data-tup="1">Upload to team</button>';
+  if(st==='newer')h+=' <button class="small" type="button" data-tdown="1">Get latest</button>';
+  if(st==='both')h+=' <button class="small" type="button" data-tres="1">Resolve…</button>';
+  b.innerHTML=h;b.classList.remove('hidden');
+  $('bUpload').classList.toggle('hidden',false);
+  $('bUpload').textContent=st==='newer'?'Get latest':st==='both'?'Resolve…':'Upload to team';
+}
+$('tBanner').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||!S)return;
+  if(b.hasAttribute('data-tup'))syncUp(S);else if(b.hasAttribute('data-tdown'))syncDown(S);else if(b.hasAttribute('data-tres'))resolveConflict(S)});
+$('bUpload').onclick=function(){
+  var st=teamState(S);
+  if(st==='newer')syncDown(S);else if(st==='both')resolveConflict(S);else syncUp(S);
+};
+$('dRefresh').onclick=function(){refreshTeam(true)};
+
+/* ==SHELL-TEAM-END== */
+(async function start(){
+  await teamInit();
+  DB=loadDB();
+  try{if(!localStorage.getItem(storeKey()))saveDB()}catch(e){}
+  renderAcct();
+  show('dash');
+  if(TEAMON&&!ACCT){var skip=false;try{skip=!!sessionStorage.getItem('kickoff.local')}catch(e){}if(!skip)showSignIn()}
+  if(CL)refreshTeam(true);
+})();
 if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){navigator.serviceWorker.register("sw.js").catch(function(){})}
 window.__kickoff={DB:function(){return DB},S:function(){return S},calc:calc,createAreas:createAreas,scanDropbox:scanDropbox,applyScan:applyScan,plan:plan,toggleSvc:toggleSvc,norm:norm,
   nextProjNum:nextProjNum,nextClientNo:nextClientNo,summaryText:summaryText,missingList:missingList,openProject:openProject,show:show,persistNow:persistNow,buildPrint:buildPrint,folderNames:folderNames,mergeIn:mergeIn,blankProject:blankProject};
